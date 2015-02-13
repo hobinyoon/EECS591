@@ -1,5 +1,6 @@
 # Python Library import
 import os
+import uuid
 
 # Uses Flask for RESTful API
 from flask import Flask, request, send_from_directory
@@ -22,14 +23,15 @@ def write_file():
     file = request.files['file']
     if file:
         filename = secure_filename(file.filename)
-        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-        return 'Write success', 201
+        file_uuid = str(uuid.uuid4())
+        file.save(os.path.join(app.config['UPLOAD_FOLDER'], file_uuid))
+        return file_uuid, 201
     return 'Write Failed', 500
 
 # Endpoint for GET method
 @app.route('/read', methods=['GET'])
 def read_file():
-    filename = request.args.get('filename')
+    filename = request.args.get('uuid')
     return send_from_directory(UPLOAD_FOLDER, secure_filename(filename))
 
 @app.route('/transfer', methods=['PUT'])
@@ -40,7 +42,7 @@ def transfer():
 def replicate():
     return 'Replicate'
 
-@app.route('logs', methods=['GET'])
+@app.route('/logs', methods=['GET'])
 def logs():
     return 'logs'
 
