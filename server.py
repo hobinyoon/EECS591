@@ -2,7 +2,7 @@
 import os
 
 # Uses Flask for RESTful API
-from flask import Flask, request
+from flask import Flask, request, send_from_directory
 from werkzeug import secure_filename
 
 # Constants
@@ -24,12 +24,13 @@ def write_file():
         filename = secure_filename(file.filename)
         file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
         return 'Write success', 201
-    return file, 404
+    return 'Write Failed', 500
 
 # Endpoint for GET method
 @app.route('/read', methods=['GET'])
 def read_file():
-    return 'i\'m a get'
+    filename = request.args.get('filename')
+    return send_from_directory(UPLOAD_FOLDER, secure_filename(filename)), 200
 
 if __name__ == '__main__':
     app.run(debug=True)
