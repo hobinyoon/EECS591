@@ -30,7 +30,19 @@ def write_file():
 @app.route('/read', methods=['GET'])
 def read_file():
     filename = request.args.get('filename')
-    return send_from_directory(UPLOAD_FOLDER, secure_filename(filename)), 200
+    return send_from_directory(UPLOAD_FOLDER, secure_filename(filename))
+
+@app.route('/transfer', methods=['PUT'])
+def transfer():
+    return 'Transfer'
+
+@app.route('/replicate', methods=['PUT'])
+def replicate():
+    return 'Replicate'
+
+@app.route('logs', methods=['GET'])
+def logs():
+    return 'logs'
 
 if __name__ == '__main__':
     app.run(debug=True)
