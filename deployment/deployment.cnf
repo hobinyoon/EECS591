@@ -1,0 +1,13 @@
+[host_1]
+host=localhost
+deployment_port=5000
+directory=/tmp
+username=vaspol
+password=Themag1e@
+
+[host_2]
+host=localhost
+deployment_port=5001
+directory=/tmp
+username=vaspol
+password=Themag1e@
