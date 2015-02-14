@@ -1,4 +1,5 @@
 # Python Library import
+import sys
 import os
 import uuid
 
@@ -63,4 +64,10 @@ def logs():
     return 'logs'
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    port = None
+    if len(sys.argv) > 1:
+        port = sys.argv[1]
+    if port == None:
+        app.run(host='0.0.0.0', debug=True)
+    else:
+        app.run(host='0.0.0.0', port=int(port))
