@@ -30,6 +30,7 @@ for section in parser.sections():
     # First, create the directories
     ssh.exec_command('mkdir ' + application_directory)
     ssh.exec_command('mkdir ' + application_directory + '/' + section)
+    ssh.exec_command('mkdir ' + application_directory + '/' + section + '/uploaded')
 
     # Second, copy the necessary files over to the destination
     for filename in FILES:
@@ -39,10 +40,11 @@ for section in parser.sections():
     # Thrid, run the server
     ssh.exec_command('cd ' + application_directory + '/' + section)
     for file in RUN_FILES:
-        run_command = 'nohup python ' + application_directory + '/' + section + '/' + file + ' ' + deployment_port + '  &'
+        file_path = application_directory + '/' + section + '/' + file
+        cd_command = 'cd ' + application_directory + '/' + section + '; '
+        run_command = 'nohup python ' + file + ' ' + deployment_port + ' &'
         print run_command
-        # ssh_stdin, ssh_stdout, ssh_stderr =
-        ssh.exec_command(run_command)
+        ssh_stdin, ssh_stdout, ssh_stderr = ssh.exec_command(cd_command + run_command)
 
     # Finally, close the connection
     ssh.close()

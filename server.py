@@ -30,6 +30,7 @@ def write_file():
     if file:
         filename = secure_filename(file.filename)
         file_uuid = str(uuid.uuid4())
+        # return str(os.path.join(app.config['UPLOAD_FOLDER'], file_uuid)), 200
         file.save(os.path.join(app.config['UPLOAD_FOLDER'], file_uuid))
         return file_uuid, 201
     return 'Write Failed', 500
@@ -37,6 +38,7 @@ def write_file():
 # Endpoint for GET method
 @app.route('/read', methods=['GET'])
 def read_file():
+    sys.stdout.flush()
     filename = request.args.get('uuid')
     return send_from_directory(UPLOAD_FOLDER, secure_filename(filename))
 
