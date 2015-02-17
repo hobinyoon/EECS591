@@ -1,0 +1,15 @@
+[host_1]
+host=localhost
+deployment_port=5000
+directory=/tmp
+;username=[username]
+;password=[password]
+;private_key_filename=~/.ssh/id_rsa
+
+[host_2]
+host=localhost
+deployment_port=5001
+directory=/tmp
+;username=[username]
+;password=[password]
+;private_key_filename=~/.ssh/id_rsa

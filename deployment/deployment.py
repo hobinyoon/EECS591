@@ -21,16 +21,27 @@ for section in parser.sections():
     print 'Deploying ' + section + '...'
     host = parser.get(section, 'host')
     deployment_port = parser.get(section, 'deployment_port')
-    username = parser.get(section, 'username')
-    password = parser.get(section, 'password')
+    
+    username = None
+    password = None
+    private_key_file = None
+
+    if parser.has_option(section, 'username'):
+        username = parser.get(section, 'username')
+    if parser.has_option(section, 'password'):
+        password = parser.get(section, 'password')
+    if parser.has_option(section, 'key_filename'):
+        private_key_filename = parser.get(section, 'key_filename')
+        private_key_file = k = paramiko.RSAKey.from_private_key_file(private_key_filename)
+
     base_directory = parser.get(section, 'directory') # Base directory must exists on the target machine
     application_directory = base_directory  + '/' + PROJECT_NAME
-    ssh.connect(host, username=username, password=password)
+    ssh.connect(host, username=username, password=password, pkey=private_key_file)
 
     # First, create the directories
-    ssh.exec_command('mkdir ' + application_directory)
-    ssh.exec_command('mkdir ' + application_directory + '/' + section)
-    ssh.exec_command('mkdir ' + application_directory + '/' + section + '/uploaded')
+    # ssh.exec_command('mkdir ' + application_directory)
+    # ssh.exec_command('mkdir ' + application_directory + '/' + section)
+    ssh.exec_command('mkdir -p ' + application_directory + '/' + section + '/uploaded')
 
     # Second, copy the necessary files over to the destination
     for filename in FILES:
