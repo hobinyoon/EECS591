@@ -39,8 +39,6 @@ for section in parser.sections():
     ssh.connect(host, username=username, password=password, pkey=private_key_file)
 
     # First, create the directories
-    # ssh.exec_command('mkdir ' + application_directory)
-    # ssh.exec_command('mkdir ' + application_directory + '/' + section)
     ssh.exec_command('mkdir -p ' + application_directory + '/' + section + '/uploaded')
 
     # Second, copy the necessary files over to the destination
