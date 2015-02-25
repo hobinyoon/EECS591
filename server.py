@@ -24,7 +24,7 @@ def hello():
     return 'hello!'
 
 # Endpoint for PUT method
-@app.route('/write', methods=['PUT'])
+@app.route('/write', methods=['POST'])
 def write_file():
     file = request.files['file']
     if file:
