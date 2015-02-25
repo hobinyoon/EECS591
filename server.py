@@ -30,7 +30,8 @@ def write_file():
     if file:
         filename = secure_filename(file.filename)
         file_uuid = str(uuid.uuid4())
-        # return str(os.path.join(app.config['UPLOAD_FOLDER'], file_uuid)), 200
+        if not os.path.isdir(app.config['UPLOAD_FOLDER']):
+            os.makedirs(app.config['UPLOAD_FOLDER'])
         file.save(os.path.join(app.config['UPLOAD_FOLDER'], file_uuid))
         return file_uuid, 201
     return 'Write Failed', 500
