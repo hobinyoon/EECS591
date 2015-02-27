@@ -47,6 +47,7 @@ class MetadataManager:
     #
     # params:
     #   server: the server known to this server that it is online
-    def update_server(self, server):
-        self.cursor.execute('INSERT INTO Server VALUES (?)', (server))
-        self.conn.commit()
+    def update_server(self, servers):
+        for server in servers:
+            self.cursor.execute('INSERT INTO Server VALUES (?)', (server,))
+            self.conn.commit()
