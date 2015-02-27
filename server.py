@@ -122,6 +122,14 @@ def delete():
 def logs():
     return 'logs'
 
+@app.route('/shutdown', methods=['GET'])
+def shutdow():
+    func = request.environ.get('werkzeug.server.shutdown')
+    if func is None:
+        raise RuntimeError('Not running with the Werkzeug Server')
+    func()
+    return 'Server is shutting down...', 200
+
 if __name__ == '__main__':
     hostname = '0.0.0.0'
     port = '5000'
