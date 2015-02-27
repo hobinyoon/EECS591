@@ -13,15 +13,15 @@ def print_command(command):
 def execute_ssh_command(ssh_client, command):
     print_command(command)
     stdin, stdout, stderr = ssh_client.exec_command(command)
-    for line in stdout.readlines():
-        sys.stdout.write(line)
-    for line in stderr.readlines():
-        sys.stdout.write(line)
+    #for line in stdout.readlines():
+    #    sys.stdout.write(line)
+    #for line in stderr.readlines():
+    #    sys.stdout.write(line)
     return
 
 CONFIG_FILE = 'deployment.cnf'
 PREFIX = '../'
-FILES = [ 'server.py', 'client.py', 'util.py', 'requirements.txt' ]
+FILES = [ 'server.py', 'client.py', 'metadata_manager.py', 'util.py', 'requirements.txt' ]
 RUN_FILES = [ 'server.py' ]
 PROJECT_NAME = 'eecs591'
 
@@ -34,7 +34,7 @@ for section in parser.sections():
     print 'Deploying ' + section + '...'
     host = parser.get(section, 'host')
     deployment_port = parser.get(section, 'deployment_port')
-    
+
     username = None
     password = None
     private_key_file = None
@@ -70,7 +70,7 @@ for section in parser.sections():
     # Fourth, run the server
     for file in RUN_FILES:
         file_path = application_directory + '/' + section + '/' + file
-        run_command = 'nohup python ' + file + ' ' + deployment_port + ' &'
+        run_command = 'nohup python ' + file + ' ' + host + ' ' + deployment_port + ' &'
         execute_ssh_command(ssh, cd_command + run_command)
 
     # Finally, close the connection
