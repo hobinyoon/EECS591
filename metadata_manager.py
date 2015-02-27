@@ -21,6 +21,15 @@ class MetadataManager:
         self.cursor.execute('INSERT INTO FileMap VALUES (?, ?)', (file_uuid, server_stored))
         self.conn.commit()
 
+    # Delete the file uuid with the server stored into the database
+    #
+    # params:
+    #   file_uuid: the file's uuid
+    #   server_stored: the hostname of the server
+    def delete_file_stored(self, file_uuid, server_stored):
+        self.cursor.execute('DELETE FROM FileMap WHERE uuid=? AND server=?', (file_uuid, server_stored))
+        self.conn.commit()
+
     # Adds the server into the metadata database
     #
     # params:
