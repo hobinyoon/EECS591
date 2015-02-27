@@ -18,6 +18,7 @@ import util
 
 # Constants
 UPLOAD_FOLDER = 'uploaded/'
+SERVER_LIST_FILE = 'servers.txt'
 
 # Setup for the app
 app = Flask(__name__)
@@ -32,7 +33,7 @@ def redirect():
     return redirect('http://www.google.com', code=302)
 
 # Endpoint for PUT method
-@app.route('/write', methods=['PUT'])
+@app.route('/write', methods=['POST'])
 def write_file():
     file = request.files['file']
     if file:
@@ -85,7 +86,7 @@ def move_file(request):
     file_uuid = request.args.get('uuid')
     destination = request.args.get('destination')
     destination_with_endpoint = destination + '/write'
-    write_request = util.construct_put_request(destination_with_endpoint, file_uuid)
+    write_request = util.construct_post_request(destination_with_endpoint, file_uuid)
     metadata = metadata_manager.MetadataManager()
     metadata.update_file_stored(file_uuid, destination)
     return write_request
@@ -122,6 +123,7 @@ def delete():
 def logs():
     return 'logs'
 
+# Shuts down the server
 @app.route('/shutdown', methods=['GET'])
 def shutdow():
     func = request.environ.get('werkzeug.server.shutdown')
@@ -130,11 +132,27 @@ def shutdow():
     func()
     return 'Server is shutting down...', 200
 
+# Entry point for the app
 if __name__ == '__main__':
+    # Default values
     hostname = '0.0.0.0'
     port = '5000'
-    if len(sys.argv) > 1:
-        hostname = sys.argv[1]
-        port = sys.argv[2]
+    server_list = []
+
+    server_list_file = sys.argv[1]
+    # Populate when there are arguments
+    if len(sys.argv) > 2:
+        hostname = sys.argv[2]
+        port = sys.argv[3]
+
+    # Read the file
+    with open(SERVER_LIST_FILE, 'rb') as server_file:
+        server_list.append(server_file.readline())
+
+    # Update the metadata
+    metadata = metadata_manager.MetadataManager()
+    metadata.update_server(server_list)
+
+    # Start Flask
     app.config['HOST'] = hostname + ':' + port # todo: not sure if this is correct.
     app.run(host=hostname, port=int(port), debug=True)
