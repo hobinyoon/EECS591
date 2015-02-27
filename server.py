@@ -75,7 +75,8 @@ def read_file():
 @app.route('/file_exists', methods=['GET'])
 def file_exists():
     filename = request.args.get('uuid')
-    file_path = secure_filename(UPLOAD_FOLDER + '/' + filename)
+    file_path = UPLOAD_FOLDER + secure_filename(filename)
+    print file_path
     if (os.path.exists(file_path)):
         return app.config['HOST'], 200
     else:
