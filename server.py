@@ -3,12 +3,13 @@ import socket
 import sys
 import os
 import os.path
+import urllib
 import uuid
 
 # Uses Flask for RESTful API
 import requests
 
-from flask import Flask, request, send_from_directory
+from flask import Flask, redirect, request, send_from_directory
 from werkzeug import secure_filename
 
 # Project imports
@@ -25,6 +26,10 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 @app.route('/')
 def hello():
     return 'hello!'
+
+@app.route('/redirect')
+def redirect():
+    return redirect('http://www.google.com', code=302)
 
 # Endpoint for PUT method
 @app.route('/write', methods=['PUT'])
@@ -43,7 +48,37 @@ def write_file():
 @app.route('/read', methods=['GET'])
 def read_file():
     filename = request.args.get('uuid')
-    return send_from_directory(UPLOAD_FOLDER, secure_filename(filename))
+    file_path = secure_filename(UPLOAD_FOLDER + '/' + filename)
+    metadata = metadata_manager.MetadataManager()
+    if (os.path.exists(file_path)):
+        return send_from_directory(UPLOAD_FOLDER, secure_filename(filename))
+
+    redirect_address = metadata.lookup_file(filename, app.config['HOST'])
+    if (redirect_address is not None):
+        url = 'http://%s/read?%s' % (redirect_address, urllib.urlencode({ 'uuid': filename }))
+        return redirect(url, code=302)
+
+    other_servers = metadata.get_all_server()
+    if (len(other_servers) > 0):
+        for server in other_servers:
+            url = 'http://%s/file_exists?%s' % (server, urllib.urlencode({ 'uuid': filename }))
+            request = requests.get(url)
+            if (request.status_code == 200):
+                redirection_url = 'http://%s/read?%s' % (server, urllib.urlencode({ 'uuid': filename }))
+                metadata.update_file_stored(filename, server)
+                return redirect(redirection_url, code=302)
+
+
+    return 'File Not Found', 404
+
+@app.route('/file_exists', methods=['GET'])
+def file_exists():
+    filename = request.args.get('uuid')
+    file_path = secure_filename(UPLOAD_FOLDER + '/' + filename)
+    if (os.path.exists(file_path)):
+        return app.config['HOST'], 200
+    else:
+        return 'File not found', 404
 
 # Helper method for sending a file to another server
 def move_file(request):
@@ -93,5 +128,5 @@ if __name__ == '__main__':
     if len(sys.argv) > 1:
         hostname = sys.argv[1]
         port = sys.argv[2]
-    app.config['HOST'] = hostname # todo: not sure if this is correct.
+    app.config['HOST'] = hostname + ':' + port # todo: not sure if this is correct.
     app.run(host=hostname, port=int(port), debug=True)
