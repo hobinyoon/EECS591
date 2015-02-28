@@ -32,7 +32,7 @@ def hello():
 def redirect():
     return redirect('http://www.google.com', code=302)
 
-# Endpoint for PUT method
+# Endpoint for write method
 @app.route('/write', methods=['POST'])
 def write_file():
     file = request.files['file']
@@ -45,11 +45,11 @@ def write_file():
         return file_uuid, 201
     return 'Write Failed', 500
 
-# Endpoint for GET method
+# Endpoint for read method
 @app.route('/read', methods=['GET'])
 def read_file():
     filename = request.args.get('uuid')
-    file_path = secure_filename(UPLOAD_FOLDER + '/' + filename)
+    file_path = UPLOAD_FOLDER + '/' + secure_filename(filename)
     metadata = metadata_manager.MetadataManager()
     if (os.path.exists(file_path)):
         return send_from_directory(UPLOAD_FOLDER, secure_filename(filename))
@@ -63,12 +63,11 @@ def read_file():
     if (len(other_servers) > 0):
         for server in other_servers:
             url = 'http://%s/file_exists?%s' % (server, urllib.urlencode({ 'uuid': filename }))
-            request = requests.get(url)
-            if (request.status_code == 200):
+            lookup_request = requests.get(url)
+            if (lookup_request.status_code == 200):
                 redirection_url = 'http://%s/read?%s' % (server, urllib.urlencode({ 'uuid': filename }))
                 metadata.update_file_stored(filename, server)
                 return redirect(redirection_url, code=302)
-
 
     return 'File Not Found', 404
 
