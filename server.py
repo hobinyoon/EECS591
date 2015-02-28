@@ -42,6 +42,7 @@ def write_file():
         file.save(os.path.join(app.config['UPLOAD_FOLDER'], file_uuid))
         metadata = metadata_manager.MetadataManager()
         metadata.update_file_stored(file_uuid, app.config['HOST'])
+        metadata.close_connection()
         return file_uuid, 201
     return 'Write Failed', 500
 
@@ -67,6 +68,7 @@ def read_file():
             if (lookup_request.status_code == 200):
                 redirection_url = 'http://%s/read?%s' % (server, urllib.urlencode({ 'uuid': filename }))
                 metadata.update_file_stored(filename, server)
+                metadata.close_connection()
                 return redirect(redirection_url, code=302)
 
     return 'File Not Found', 404
@@ -89,6 +91,7 @@ def move_file(request):
     write_request = util.construct_post_request(destination_with_endpoint, file_uuid)
     metadata = metadata_manager.MetadataManager()
     metadata.update_file_stored(file_uuid, destination)
+    metadata.close_connection()
     return write_request
 
 # Transfers the file. This API call should not be open to all users.
@@ -98,6 +101,7 @@ def transfer():
     if write_request.status_code == 201:
         os.remove(os.path.join(app.config['UPLOAD_FOLDER'], file_uuid))
         metadata.delete_file_stored(request.args.get('uuid'), request.args.get('destination'))
+        metadata.close_connection()
     return write_request
 
 # Replicate the file. This API call should not be open to all users.
@@ -115,6 +119,7 @@ def delete():
         os.remove(file_path)
         metadata = metadata_manager.MetadataManager()
         metadata.delete_file_stored(file_uuid, app.config['HOST'])
+        metadata.close_connection()
         return 'Success', 200
     return 'File not found', 404
 
@@ -152,6 +157,7 @@ if __name__ == '__main__':
     # Update the metadata
     metadata = metadata_manager.MetadataManager()
     metadata.update_server(server_list)
+    metadata.close_connection()
 
     # Start Flask
     app.config['HOST'] = hostname + ':' + port # todo: not sure if this is correct.

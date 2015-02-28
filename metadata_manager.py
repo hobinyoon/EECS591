@@ -55,3 +55,7 @@ class MetadataManager:
         for server in servers:
             self.cursor.execute('INSERT INTO Server VALUES (?)', (server.strip(),))
             self.conn.commit()
+
+    # Closes the connection to the database
+    def close_connection(self):
+        self.conn.close()
