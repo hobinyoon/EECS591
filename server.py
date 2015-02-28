@@ -29,8 +29,8 @@ def hello():
     return 'hello!'
 
 @app.route('/redirect')
-def redirect():
-    return redirect('http://www.google.com', code=302)
+def redirect_endpoint():
+    return redirect('http://localhost:5000/read?uuid=xxx', code=302)
 
 # Endpoint for write method
 @app.route('/write', methods=['POST'])
@@ -59,7 +59,7 @@ def read_file():
         url = 'http://%s/read?%s' % (redirect_address, urllib.urlencode({ 'uuid': filename }))
         return redirect(url, code=302)
 
-    other_servers = metadata.get_all_server()
+    other_servers = metadata.get_all_server(app.config['HOST'])
     if (len(other_servers) > 0):
         for server in other_servers:
             url = 'http://%s/file_exists?%s' % (server, urllib.urlencode({ 'uuid': filename }))
@@ -147,7 +147,7 @@ if __name__ == '__main__':
 
     # Read the file
     with open(SERVER_LIST_FILE, 'rb') as server_file:
-        server_list.append(server_file.readline())
+        server_list = server_file.readlines()
 
     # Update the metadata
     metadata = metadata_manager.MetadataManager()

@@ -40,8 +40,12 @@ class MetadataManager:
     # params:
     #   local: the local address
     def get_all_server(self, local):
-        self.cursor.execute('SELECT * FROM Server WHERE server<>?', (local))
-        return self.cursor.fetchall()
+        self.cursor.execute('SELECT DISTINCT * FROM Server WHERE server<>?', (local,))
+        results = self.cursor.fetchall()
+        retval = []
+        for result in results:
+            retval.append(result[0])
+        return retval
 
     # Adds the server into the metadata database
     #
@@ -49,5 +53,5 @@ class MetadataManager:
     #   server: the server known to this server that it is online
     def update_server(self, servers):
         for server in servers:
-            self.cursor.execute('INSERT INTO Server VALUES (?)', (server,))
+            self.cursor.execute('INSERT INTO Server VALUES (?)', (server.strip(),))
             self.conn.commit()

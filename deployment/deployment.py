@@ -61,10 +61,11 @@ for section in parser.sections():
 
     base_directory = parser.get(section, 'directory') # Base directory must exists on the target machine
     application_directory = base_directory  + '/' + PROJECT_NAME
+    deployment_directory = application_directory + '/' + section
     ssh.connect(host, username=username, password=password, pkey=private_key_file)
 
     # First, create the directories
-    execute_ssh_command(ssh, 'mkdir -p ' + application_directory + '/' + section + '/uploaded')
+    execute_ssh_command(ssh, 'rm -rf ' + deployment_directory + '; mkdir -p ' + deployment_directory + '/uploaded')
 
     # Second, copy the necessary files over to the destination
     for filename in FILES:
