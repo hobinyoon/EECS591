@@ -20,5 +20,5 @@ def upload(filename):
   print r.status_code
 
 # Execution
-if args.upload != 'None':
+if args.upload is not None:
   upload(args.upload)
