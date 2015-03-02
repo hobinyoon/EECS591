@@ -50,8 +50,8 @@ def write_file():
         metadata.update_file_stored(file_uuid, app.config['HOST'])
         logger.log(filename, ip_address, app.config['HOST'], 'WRITE', 201, os.path.getsize(file_path))
         return file_uuid, 201
-    logger.log(filename, ip_address, app.config['HOST'], 'WRITE', 500, -1)
-    return 'Write Failed', 500
+    logger.log(filename, ip_address, app.config['HOST'], 'WRITE', 400, -1)
+    return 'Write Failed', 400
 
 # Endpoint for read method
 @app.route('/read', methods=['GET'])
