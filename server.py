@@ -21,6 +21,7 @@ import util
 # Constants
 UPLOAD_FOLDER = 'uploaded/'
 SERVER_LIST_FILE = 'servers.txt'
+LOG_DIRECTORY = 'logs'
 
 # Setup for the app
 app = Flask(__name__)
@@ -97,8 +98,8 @@ def move_file(request, method, ip_address):
     metadata = getattr(g, 'metadata', None)
     file_uuid = request.args.get('uuid')
     file_path = UPLOADED_FOLDER + '/' + file_uuid
-    if !os.path.exists(file_path)
-        return resp = make_response('File not found', 404)
+    if not os.path.exists(file_path):
+        return make_response('File not found', 404)
     destination = request.args.get('destination')
     destination_with_endpoint = destination + '/write'
     files = {'file': open(file_path, 'rb')}
@@ -140,7 +141,9 @@ def delete():
 # Returns the log.
 @app.route('/logs', methods=['GET'])
 def logs():
-    return 'logs'
+    date = request.args.get('date')
+    file_name = date + '.log'
+    return send_from_directory(LOG_DIRECTORY, secure_filename(file_name))
 
 # Shuts down the server
 @app.route('/shutdown', methods=['GET'])
