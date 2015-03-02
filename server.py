@@ -52,7 +52,7 @@ def read_file():
     filename = request.args.get('uuid')
     file_path = UPLOAD_FOLDER + '/' + secure_filename(filename)
     metadata = metadata_manager.MetadataManager()
-    if (os.path.exists(file_path)):
+    if (metadata.is_file_exist_locally(filename, app.config['HOST'])):
         return send_from_directory(UPLOAD_FOLDER, secure_filename(filename))
 
     redirect_address = metadata.lookup_file(filename, app.config['HOST'])
@@ -115,7 +115,7 @@ def replicate():
 def delete():
     file_uuid = request.args.get('uuid')
     file_path = UPLOAD_FOLDER + '/' + file_uuid
-    if (os.path.exists(file_path)):
+    if (metadata.is_file_exist_locally(file_uuid, app.config['HOST'])):
         os.remove(file_path)
         metadata = metadata_manager.MetadataManager()
         metadata.delete_file_stored(file_uuid, app.config['HOST'])
