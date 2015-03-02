@@ -10,7 +10,7 @@ import uuid
 # Uses Flask for RESTful API
 import requests
 
-from flask import Flask, g, make_response, redirect, request, send_from_directory
+from flask import Flask, g, make_response,  redirect, request, send_from_directory
 from werkzeug import secure_filename
 
 # Project imports
@@ -105,7 +105,8 @@ def move_file(request, method, ip_address):
     destination_with_endpoint = destination + '/write'
     files = {'file': open(file_path, 'rb')}
     write_request = requests.post(url, files)
-    metadata.update_file_stored(file_uuid, destination)
+    if (write_request.status_code == 201):
+        metadata.update_file_stored(file_uuid, destination)
     logger.log(filename, ip_address, app.config['HOST'], method, write_request.status_code, os.path.getsize(file_path))
     return write_request
 
