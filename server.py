@@ -1,4 +1,5 @@
 # Python Library import
+import argparse
 import socket
 import sys
 import os
@@ -152,11 +153,19 @@ if __name__ == '__main__':
     port = '5000'
     server_list = []
 
-    server_list_file = sys.argv[1]
+    parser = argparse.ArgumentParser()
+    parser.add_argument('serverlist', help='the file containing the host of other servers')
+    parser.add_argument('--host', help='the host for the server')
+    parser.add_argument('--port', help='the port for deployment')
+
+    args = vars(parser.parse_args())
+    server_list_file = args['serverlist']
+
     # Populate when there are arguments
-    if len(sys.argv) > 2:
-        hostname = sys.argv[2]
-        port = sys.argv[3]
+    if args['host'] is not None:
+        hostname = args['host']
+    if args['port'] is not None:
+        port = args['port']
 
     # Read the file
     with open(SERVER_LIST_FILE, 'rb') as server_file:
@@ -170,4 +179,4 @@ if __name__ == '__main__':
 
     # Start Flask
     app.config['HOST'] = hostname + ':' + port # todo: not sure if this is correct.
-    app.run(host=hostname, port=int(port), debug=True)
+    app.run(host='0.0.0.0', port=int(port), debug=True)

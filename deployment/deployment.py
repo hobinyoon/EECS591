@@ -86,7 +86,7 @@ for section in parser.sections():
     # Fifth, run the server
     for file in RUN_FILES:
         file_path = application_directory + '/' + section + '/' + file
-        run_command = 'nohup python ' + file + ' ' + SERVER_LIST_FILE + ' ' + host + ' ' + deployment_port + ' &'
+        run_command = 'nohup python ' + file + ' ' + SERVER_LIST_FILE + ' --host ' + host + ' --port ' + deployment_port + ' &'
         execute_ssh_command(ssh, cd_command + run_command)
 
     # Finally, close the connection
