@@ -17,6 +17,6 @@ def log(uuid, source_entity, destination_entity, request_type, status, response_
                 str(request_type) + '\t' + \
                 str(status) + '\t' + \
                 str(response_size) + '\n'
-    log_file_path = LOG_DIRECTORY + '/' + log_file
+    log_file_path = os.path.join(LOG_DIRECTORY, log_file)
     with open(log_file_path, 'a+') as log:
         log.write(log_entry)
