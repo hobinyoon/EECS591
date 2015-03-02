@@ -118,7 +118,7 @@ def transfer():
     write_request = move_file(request, 'TRANSFER', ip_address)
     if write_request.status_code == 201:
         os.remove(os.path.join(app.config['UPLOAD_FOLDER'], file_uuid))
-        metadata.delete_file_stored(request.args.get('uuid'), request.args.get('destination'))
+        metadata.delete_file_stored(request.args.get('uuid'), app.config['HOST'])
     return write_request
 
 # Replicate the file. This API call should not be open to all users.
