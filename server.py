@@ -41,6 +41,8 @@ def write_file():
         metadata = getattr(g, 'metadata', None)
         filename = secure_filename(file.filename)
         file_uuid = str(uuid.uuid4())
+        if not os.path.isdir(app.config['UPLOAD_FOLDER']):
+            os.makedirs(app.config['UPLOAD_FOLDER'])
         file.save(os.path.join(app.config['UPLOAD_FOLDER'], file_uuid))
         metadata.update_file_stored(file_uuid, app.config['HOST'])
         return file_uuid, 201

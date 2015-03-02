@@ -1,21 +1,24 @@
-import socket
+import argparse
 import sys
+import requests
 
-sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+# Client argument parsing information.
+parser = argparse.ArgumentParser(description='Upload client for EECS591.')
+parser.add_argument('--upload', help='Path for a file to upload.')
+parser.add_argument('--logs', action='store_true', help='Outputs all logs to stdout.')
 
-server_address = ('localhost', 5000)
-sock.connect(server_address)
+args = parser.parse_args()
 
-try:
-    msg = 'hello!'
-    sock.sendall(msg)
+# Config
+server_name = '127.0.0.1'
+server_port = '5000'
 
-    amount_received = 0
-    amount_expected = len(msg)
+# Functions
+def upload(filename):
+  files = { 'file': open(filename, 'rb')  }
+  r = requests.post('http://' + server_name + ':' + server_port + '/write', files=files)
+  print r.status_code
 
-    while (amount_received < amount_expected):
-        data = sock.recv(1024)
-        amount_received += len(data)
-
-finally:
-    sock.close()
+# Execution
+if args.upload is not None:
+  upload(args.upload)
