@@ -1,4 +1,5 @@
 # Python Library import
+import argparse
 import socket
 import sys
 import os
@@ -9,7 +10,7 @@ import uuid
 # Uses Flask for RESTful API
 import requests
 
-from flask import Flask, redirect, request, send_from_directory
+from flask import Flask, g, redirect, request, send_from_directory
 from werkzeug import secure_filename
 
 # Project imports
@@ -37,27 +38,26 @@ def redirect_endpoint():
 def write_file():
     file = request.files['file']
     if file:
+        metadata = getattr(g, 'metadata', None)
         filename = secure_filename(file.filename)
         file_uuid = str(uuid.uuid4())
         file.save(os.path.join(app.config['UPLOAD_FOLDER'], file_uuid))
-        metadata = metadata_manager.MetadataManager()
         metadata.update_file_stored(file_uuid, app.config['HOST'])
-        metadata.close_connection()
         return file_uuid, 201
     return 'Write Failed', 500
 
 # Endpoint for read method
 @app.route('/read', methods=['GET'])
 def read_file():
+    metadata = getattr(g, 'metadata', None)
     filename = request.args.get('uuid')
     file_path = UPLOAD_FOLDER + '/' + secure_filename(filename)
-    metadata = metadata_manager.MetadataManager()
-    if (os.path.exists(file_path)):
+    if (metadata.is_file_exist_locally(filename, app.config['HOST']) is not None):
         return send_from_directory(UPLOAD_FOLDER, secure_filename(filename))
 
     redirect_address = metadata.lookup_file(filename, app.config['HOST'])
     if (redirect_address is not None):
-        url = 'http://%s/read?%s' % (redirect_address, urllib.urlencode({ 'uuid': filename }))
+        url = 'http://%s/read?%s' % (redirect_address[0], urllib.urlencode({ 'uuid': filename }))
         return redirect(url, code=302)
 
     other_servers = metadata.get_all_server(app.config['HOST'])
@@ -68,7 +68,6 @@ def read_file():
             if (lookup_request.status_code == 200):
                 redirection_url = 'http://%s/read?%s' % (server, urllib.urlencode({ 'uuid': filename }))
                 metadata.update_file_stored(filename, server)
-                metadata.close_connection()
                 return redirect(redirection_url, code=302)
 
     return 'File Not Found', 404
@@ -85,23 +84,22 @@ def file_exists():
 
 # Helper method for sending a file to another server
 def move_file(request):
+    metadata = getattr(g, 'metadata', None)
     file_uuid = request.args.get('uuid')
     destination = request.args.get('destination')
     destination_with_endpoint = destination + '/write'
     write_request = util.construct_post_request(destination_with_endpoint, file_uuid)
-    metadata = metadata_manager.MetadataManager()
     metadata.update_file_stored(file_uuid, destination)
-    metadata.close_connection()
     return write_request
 
 # Transfers the file. This API call should not be open to all users.
 @app.route('/transfer', methods=['PUT'])
 def transfer():
+    metadata = getattr(g, 'metadata', None)
     write_request = move_file(request)
     if write_request.status_code == 201:
         os.remove(os.path.join(app.config['UPLOAD_FOLDER'], file_uuid))
         metadata.delete_file_stored(request.args.get('uuid'), request.args.get('destination'))
-        metadata.close_connection()
     return write_request
 
 # Replicate the file. This API call should not be open to all users.
@@ -113,13 +111,12 @@ def replicate():
 # Deletes the file. This API call should not be open to all users.
 @app.route('/delete', methods=['DELETE'])
 def delete():
+    metadata = getattr(g, 'metadata', None)
     file_uuid = request.args.get('uuid')
     file_path = UPLOAD_FOLDER + '/' + file_uuid
-    if (os.path.exists(file_path)):
+    if (metadata.is_file_exist_locally(file_uuid, app.config['HOST'])):
         os.remove(file_path)
-        metadata = metadata_manager.MetadataManager()
         metadata.delete_file_stored(file_uuid, app.config['HOST'])
-        metadata.close_connection()
         return 'Success', 200
     return 'File not found', 404
 
@@ -130,12 +127,24 @@ def logs():
 
 # Shuts down the server
 @app.route('/shutdown', methods=['GET'])
-def shutdow():
+def shutdown():
     func = request.environ.get('werkzeug.server.shutdown')
     if func is None:
         raise RuntimeError('Not running with the Werkzeug Server')
     func()
     return 'Server is shutting down...', 200
+
+# Connect to the metadata database
+@app.before_request
+def before_request():
+    g.metadata = metadata_manager.MetadataManager()
+
+# Close the metadata database connection
+@app.teardown_request
+def teardown_request(exception):
+    metadata = getattr(g, 'metadata', None)
+    if metadata is not None:
+        metadata.close_connection()
 
 # Entry point for the app
 if __name__ == '__main__':
@@ -144,11 +153,19 @@ if __name__ == '__main__':
     port = '5000'
     server_list = []
 
-    server_list_file = sys.argv[1]
+    parser = argparse.ArgumentParser()
+    parser.add_argument('serverlist', help='the file containing the host of other servers')
+    parser.add_argument('--host', help='the host for the server')
+    parser.add_argument('--port', help='the port for deployment')
+
+    args = vars(parser.parse_args())
+    server_list_file = args['serverlist']
+
     # Populate when there are arguments
-    if len(sys.argv) > 2:
-        hostname = sys.argv[2]
-        port = sys.argv[3]
+    if args['host'] is not None:
+        hostname = args['host']
+    if args['port'] is not None:
+        port = args['port']
 
     # Read the file
     with open(SERVER_LIST_FILE, 'rb') as server_file:
@@ -156,9 +173,10 @@ if __name__ == '__main__':
 
     # Update the metadata
     metadata = metadata_manager.MetadataManager()
-    metadata.update_server(server_list)
+    metadata.clear_metadata()
+    metadata.update_servers(server_list)
     metadata.close_connection()
 
     # Start Flask
     app.config['HOST'] = hostname + ':' + port # todo: not sure if this is correct.
-    app.run(host=hostname, port=int(port), debug=True)
+    app.run(host='0.0.0.0', port=int(port), debug=True)
