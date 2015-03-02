@@ -1,0 +1,11 @@
+CREATE TABLE IF NOT EXISTS Log(timestamp integer,
+                               uuid text,
+                               source_entity text,
+                               destination_entity text,
+                               request_type text,
+                               status integer,
+                               request_size integer,
+                               response_size integer,
+                               PRIMARY KEY (timestamp, uuid, source_entity, destination_entity));
+CREATE INDEX IF NOT EXISTS Log_Timestamp ON Log(timestamp);
+CREATE INDEX IF NOT EXISTS Log_UUID ON Log(UUID);
