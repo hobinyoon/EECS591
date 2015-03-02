@@ -56,3 +56,4 @@ target/
 deployment/deployment.cnf
 uploaded/
 venv/
+aggregator/*.db
