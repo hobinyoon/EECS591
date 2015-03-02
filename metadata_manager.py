@@ -60,7 +60,7 @@ class MetadataManager:
     def clear_metadata(self):
         self.cursor.execute('DELETE FROM Server WHERE 1=1')
         self.cursor.execute('DELETE FROM FileMap WHERE 1=1')
-        self.cursor.commit()
+        self.conn.commit()
 
     # Adds the server into the metadata database
     #
