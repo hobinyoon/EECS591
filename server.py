@@ -10,7 +10,7 @@ import uuid
 # Uses Flask for RESTful API
 import requests
 
-from flask import Flask, g, redirect, request, send_from_directory
+from flask import Flask, g, make_response, redirect, request, send_from_directory
 from werkzeug import secure_filename
 
 # Project imports
