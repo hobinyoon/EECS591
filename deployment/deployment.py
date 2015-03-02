@@ -23,7 +23,7 @@ CONFIG_FILE = 'deployment.cnf'
 SERVER_LIST_FILE = 'servers.txt'
 METADATA_FILE = 'metadata.db'
 PREFIX = '../'
-FILES_TO_DEPLOY = [ 'server.py', 'client.py', 'metadata_manager.py', 'util.py', 'requirements.txt', 'metadata.sql', SERVER_LIST_FILE ]
+FILES_TO_DEPLOY = [ 'server.py', 'client.py', 'metadata_manager.py', 'util.py', 'requirements.txt', 'metadata.sql', 'logger.py', SERVER_LIST_FILE ]
 RUN_FILES = [ 'server.py' ]
 PROJECT_NAME = 'eecs591'
 
@@ -65,7 +65,7 @@ for section in parser.sections():
     ssh.connect(host, username=username, password=password, pkey=private_key_file)
 
     # First, create the directories
-    execute_ssh_command(ssh, 'rm -rf ' + deployment_directory + '; mkdir -p ' + deployment_directory + '/uploaded')
+    execute_ssh_command(ssh, 'rm -rf ' + deployment_directory + '; mkdir -p ' + deployment_directory + '/uploaded; mkdir -p ' + deployment_directory + '/logs')
 
     # Second, copy the necessary files over to the destination
     for filename in FILES_TO_DEPLOY:

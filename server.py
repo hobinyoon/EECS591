@@ -10,16 +10,18 @@ import uuid
 # Uses Flask for RESTful API
 import requests
 
-from flask import Flask, g, redirect, request, send_from_directory
+from flask import Flask, g, make_response,  redirect, request, send_from_directory
 from werkzeug import secure_filename
 
 # Project imports
+import logger
 import metadata_manager
 import util
 
 # Constants
 UPLOAD_FOLDER = 'uploaded/'
 SERVER_LIST_FILE = 'servers.txt'
+LOG_DIRECTORY = 'logs'
 
 # Setup for the app
 app = Flask(__name__)
@@ -36,8 +38,9 @@ def redirect_endpoint():
 # Endpoint for write method
 @app.route('/write', methods=['POST'])
 def write_file():
+    ip_address = request.remote_addr if request.args.get('ip') is None else request.args.get('ip')
     file = request.files['file']
-    if file:
+    if file is not None:
         metadata = getattr(g, 'metadata', None)
         filename = secure_filename(file.filename)
         file_uuid = str(uuid.uuid4())
@@ -45,21 +48,26 @@ def write_file():
             os.makedirs(app.config['UPLOAD_FOLDER'])
         file.save(os.path.join(app.config['UPLOAD_FOLDER'], file_uuid))
         metadata.update_file_stored(file_uuid, app.config['HOST'])
+        logger.log(filename, ip_address, app.config['HOST'], 'WRITE', 201, os.path.getsize(file_path))
         return file_uuid, 201
-    return 'Write Failed', 500
+    logger.log(filename, ip_address, app.config['HOST'], 'WRITE', 400, -1)
+    return 'Write Failed', 400
 
 # Endpoint for read method
 @app.route('/read', methods=['GET'])
 def read_file():
+    ip_address = request.remote_addr if request.args.get('ip') is None else request.args.get('ip')
     metadata = getattr(g, 'metadata', None)
     filename = request.args.get('uuid')
     file_path = UPLOAD_FOLDER + '/' + secure_filename(filename)
     if (metadata.is_file_exist_locally(filename, app.config['HOST']) is not None):
+        logger.log(filename, ip_address, app.config['HOST'], 'READ', 200, os.path.getsize(file_path))
         return send_from_directory(UPLOAD_FOLDER, secure_filename(filename))
 
     redirect_address = metadata.lookup_file(filename, app.config['HOST'])
     if (redirect_address is not None):
         url = 'http://%s/read?%s' % (redirect_address[0], urllib.urlencode({ 'uuid': filename }))
+        logger.log(filename, ip_address, app.config['HOST'], 'READ', 302, -1)
         return redirect(url, code=302)
 
     other_servers = metadata.get_all_server(app.config['HOST'])
@@ -70,8 +78,10 @@ def read_file():
             if (lookup_request.status_code == 200):
                 redirection_url = 'http://%s/read?%s' % (server, urllib.urlencode({ 'uuid': filename }))
                 metadata.update_file_stored(filename, server)
+                logger.log(filename, ip_address, app.config['HOST'], 'READ', 302, -1)
                 return redirect(redirection_url, code=302)
 
+    logger.log(filename, ip_address, app.config['HOST'], 'READ', 404, -1)
     return 'File Not Found', 404
 
 @app.route('/file_exists', methods=['GET'])
@@ -85,29 +95,37 @@ def file_exists():
         return 'File not found', 404
 
 # Helper method for sending a file to another server
-def move_file(request):
+def move_file(request, method, ip_address):
     metadata = getattr(g, 'metadata', None)
     file_uuid = request.args.get('uuid')
+    file_path = UPLOADED_FOLDER + '/' + file_uuid
+    if not os.path.exists(file_path):
+        return make_response('File not found', 404)
     destination = request.args.get('destination')
     destination_with_endpoint = destination + '/write'
-    write_request = util.construct_post_request(destination_with_endpoint, file_uuid)
-    metadata.update_file_stored(file_uuid, destination)
+    files = {'file': open(file_path, 'rb')}
+    write_request = requests.post(url, files)
+    if (write_request.status_code == 201):
+        metadata.update_file_stored(file_uuid, destination)
+    logger.log(filename, ip_address, app.config['HOST'], method, write_request.status_code, os.path.getsize(file_path))
     return write_request
 
 # Transfers the file. This API call should not be open to all users.
 @app.route('/transfer', methods=['PUT'])
 def transfer():
+    ip_address = request.remote_addr if request.args.get('ip') is None else request.args.get('ip')
     metadata = getattr(g, 'metadata', None)
-    write_request = move_file(request)
+    write_request = move_file(request, 'TRANSFER', ip_address)
     if write_request.status_code == 201:
         os.remove(os.path.join(app.config['UPLOAD_FOLDER'], file_uuid))
-        metadata.delete_file_stored(request.args.get('uuid'), request.args.get('destination'))
+        metadata.delete_file_stored(request.args.get('uuid'), app.config['HOST'])
     return write_request
 
 # Replicate the file. This API call should not be open to all users.
 @app.route('/replicate', methods=['PUT'])
 def replicate():
-    write_request = move_file(request)
+    ip_address = request.remote_addr if request.args.get('ip') is None else request.args.get('ip')
+    write_request = move_file(request, 'REPLICATE', ip_address)
     return write_request
 
 # Deletes the file. This API call should not be open to all users.
@@ -125,7 +143,9 @@ def delete():
 # Returns the log.
 @app.route('/logs', methods=['GET'])
 def logs():
-    return 'logs'
+    date = request.args.get('date')
+    file_name = date + '.log'
+    return send_from_directory(LOG_DIRECTORY, secure_filename(file_name))
 
 # Shuts down the server
 @app.route('/shutdown', methods=['GET'])
