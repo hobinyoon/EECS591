@@ -164,7 +164,7 @@ if __name__ == '__main__':
 
     # Update the metadata
     metadata = metadata_manager.MetadataManager()
-    metadata.update_server(server_list)
+    metadata.update_servers(server_list)
     metadata.close_connection()
 
     # Start Flask

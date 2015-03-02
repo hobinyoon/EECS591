@@ -7,7 +7,7 @@ def construct_put_request(url, uuid):
     request = requests.put(url, files)
     return request
 
-# Construct a put request which involves a url and a uuid of the file
+# Construct a post request which involves a url and a uuid of the file
 def construct_post_request(url, uuid):
     files = {'file': open(uuid, 'rb')}
     request = requests.post(url, files)
