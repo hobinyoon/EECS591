@@ -126,7 +126,7 @@ def logs():
 
 # Shuts down the server
 @app.route('/shutdown', methods=['GET'])
-def shutdow():
+def shutdown():
     func = request.environ.get('werkzeug.server.shutdown')
     if func is None:
         raise RuntimeError('Not running with the Werkzeug Server')
