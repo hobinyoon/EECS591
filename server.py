@@ -164,6 +164,7 @@ if __name__ == '__main__':
 
     # Update the metadata
     metadata = metadata_manager.MetadataManager()
+    metadata.clear_metadata()
     metadata.update_servers(server_list)
     metadata.close_connection()
 

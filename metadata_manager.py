@@ -56,11 +56,18 @@ class MetadataManager:
             retval.append(result[0])
         return retval
 
+    # Clear all metadata from the database.
+    def clear_metadata(self):
+        self.cursor.execute('DELETE FROM Server WHERE 1=1')
+        self.cursor.execute('DELETE FROM FileMap WHERE 1=1')
+        self.cursor.commit()
+
     # Adds the server into the metadata database
     #
     # params:
     #   server: the server known to this server that it is online
     def update_servers(self, servers):
+        self.cursor.execute('DELETE FROM Server WHERE 1=1')
         for server in servers:
             self.cursor.execute('INSERT INTO Server VALUES (?)', (server.strip(),))
             self.conn.commit()
