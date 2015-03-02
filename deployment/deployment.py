@@ -65,7 +65,7 @@ for section in parser.sections():
     ssh.connect(host, username=username, password=password, pkey=private_key_file)
 
     # First, create the directories
-    execute_ssh_command(ssh, 'rm -rf ' + deployment_directory + '; mkdir -p ' + deployment_directory + '/uploaded')
+    execute_ssh_command(ssh, 'rm -rf ' + deployment_directory + '; mkdir -p ' + deployment_directory + '/uploaded; mkdir -p ' + deployment_directory + '/logs')
 
     # Second, copy the necessary files over to the destination
     for filename in FILES_TO_DEPLOY:
