@@ -65,6 +65,7 @@ def read_file():
     redirect_address = metadata.lookup_file(filename, app.config['HOST'])
     if (redirect_address is not None):
         url = 'http://%s/read?%s' % (redirect_address[0], urllib.urlencode({ 'uuid': filename }))
+        logger.log(filename, ip_address, app.config['HOST'], 'READ', 302, -1)
         return redirect(url, code=302)
 
     other_servers = metadata.get_all_server(app.config['HOST'])
@@ -75,6 +76,7 @@ def read_file():
             if (lookup_request.status_code == 200):
                 redirection_url = 'http://%s/read?%s' % (server, urllib.urlencode({ 'uuid': filename }))
                 metadata.update_file_stored(filename, server)
+                logger.log(filename, ip_address, app.config['HOST'], 'READ', 302, -1)
                 return redirect(redirection_url, code=302)
 
     logger.log(filename, ip_address, app.config['HOST'], 'READ', 404, -1)
@@ -95,6 +97,8 @@ def move_file(request, method, ip_address):
     metadata = getattr(g, 'metadata', None)
     file_uuid = request.args.get('uuid')
     file_path = UPLOADED_FOLDER + '/' + file_uuid
+    if !os.path.exists(file_path)
+        return resp = make_response('File not found', 404)
     destination = request.args.get('destination')
     destination_with_endpoint = destination + '/write'
     files = {'file': open(file_path, 'rb')}
