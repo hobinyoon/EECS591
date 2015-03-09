@@ -36,7 +36,7 @@ class LogManager:
   def last_timestamp(self):
     self.cursor.execute('SELECT timestamp FROM Log ORDER BY timestamp DESC LIMIT 1')
     result = self.cursor.fetchone()
-    if result == None:
+    if result is None:
       return 0
     return result[0]
 
