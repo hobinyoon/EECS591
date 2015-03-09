@@ -43,12 +43,12 @@ def update_log_from_server(server, start_timestamp, end_timestamp):
   while current_timestamp < end_timestamp:
     date = timestamp_to_date(current_timestamp)
     server_log = request_log_from_server(server, date)
-    if server_log != None:
+    if server_log is not None:
       log_mgr.add_log_entries(server_log)
     current_timestamp = current_timestamp + SECONDS_PER_DAY
 
 def update_aggregated_logs(start_timestamp = None):
-  if start_timestamp == None:
+  if start_timestamp is None:
     start_timestamp = log_mgr.last_timestamp()
   now = int(time.time())
 
