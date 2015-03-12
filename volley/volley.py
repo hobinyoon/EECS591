@@ -151,9 +151,12 @@ class Volley:
     print 'WEIGHTS: ' + str(weights)
     print 'LOCATIONS: ' + str(locations)
 
+    # total_weight = sum(weights)
     current_weight = float(weights.pop())
     weight = current_weight / total_weight
     location = locations.pop()
+
+    print 'current_weight: ' + str(weight)
 
     if length == 1:
       return location
@@ -184,7 +187,8 @@ class Volley:
       locations.append(client_loc)
       weights.append(req[1])
     
-    locations.reverse()
+    # TODO: For a trivial two-point case, reversing it breaks it.. Why?
+    # locations.reverse()
 
     print locations
 
