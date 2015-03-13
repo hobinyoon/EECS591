@@ -46,7 +46,8 @@ def write_file():
         file_uuid = str(uuid.uuid4())
         if not os.path.isdir(app.config['UPLOAD_FOLDER']):
             os.makedirs(app.config['UPLOAD_FOLDER'])
-        file.save(os.path.join(app.config['UPLOAD_FOLDER'], file_uuid))
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], file_uuid)
+        file.save(file_path)
         metadata.update_file_stored(file_uuid, app.config['HOST'])
         logger.log(filename, ip_address, app.config['HOST'], 'WRITE', 201, os.path.getsize(file_path))
         return file_uuid, 201
