@@ -144,8 +144,13 @@ def delete():
 # Returns the log.
 @app.route('/logs', methods=['GET'])
 def logs():
-    date = request.args.get('date')
-    file_name = date + '.log'
+    if 'date' in request.args:
+        date = request.args.get('date')
+        file_name = date + '.log'
+    else:
+        list_of_files = os.listdir(LOG_DIRECTORY)
+        list_of_files.sort()
+        file_name = list_of_files[0]
     return send_from_directory(LOG_DIRECTORY, secure_filename(file_name))
 
 # Shuts down the server
@@ -156,6 +161,10 @@ def shutdown():
         raise RuntimeError('Not running with the Werkzeug Server')
     func()
     return 'Server is shutting down...', 200
+
+@app.route('/earliestDate', methods=['GET'])
+def get_earliest_date():
+    return
 
 # Connect to the metadata database
 @app.before_request
