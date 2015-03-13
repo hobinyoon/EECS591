@@ -23,3 +23,25 @@ The aggregator will retrieve log entries from all known servers and store the re
   ```
   python aggregator/aggregator.py --date 2015-03-01
   ```
+
+
+## Simulation 
+
+### Description
+
+### Before you run the simulation
+
+1. **Install pyipinfodb (an API for transfering ip address to geolocation) and geopy** 
+  ```
+  pip install git+git://github.com/markmossberg/pyipinfodb.git
+  
+  pip install geopy
+  ```
+
+### Usage
+
+1. **Run simulation** 
+  ```
+  python simulation_driver.py
+  ```
+
