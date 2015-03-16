@@ -39,8 +39,8 @@ def redirect_endpoint():
 @app.route('/write', methods=['POST'])
 def write_file():
     ip_address = request.remote_addr if request.args.get('ip') is None else request.args.get('ip')
-    file = request.files['file']
-    if file is not None:
+    if 'file' in request.files:
+        file = request.files['file']
         metadata = getattr(g, 'metadata', None)
         filename = secure_filename(file.filename)
         file_uuid = str(uuid.uuid4())
@@ -49,10 +49,11 @@ def write_file():
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], file_uuid)
         file.save(file_path)
         metadata.update_file_stored(file_uuid, app.config['HOST'])
-        logger.log(filename, ip_address, app.config['HOST'], 'WRITE', 201, os.path.getsize(file_path))
+        logger.log(file_uuid, ip_address, app.config['HOST'], 'WRITE', 201, os.path.getsize(file_path))
         return file_uuid, 201
-    logger.log(filename, ip_address, app.config['HOST'], 'WRITE', 400, -1)
-    return 'Write Failed', 400
+    else:
+        logger.log('NO_FILE', ip_address, app.config['HOST'], 'WRITE', 400, -1)
+        return 'Write Failed', 400
 
 # Endpoint for read method
 @app.route('/read', methods=['GET'])
