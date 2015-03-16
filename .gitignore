@@ -64,3 +64,4 @@ deployment/deployment.cnf
 uploaded/
 venv/
 aggregator/*.db
+client_download/
