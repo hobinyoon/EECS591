@@ -49,15 +49,9 @@ def write_file():
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], file_uuid)
         file.save(file_path)
         metadata.update_file_stored(file_uuid, app.config['HOST'])
-        logger.log(filename, ip_address, app.config['HOST'], 'WRITE', 201, os.path.getsize(file_path))
+        logger.log(file_uuid, ip_address, app.config['HOST'], 'WRITE', 201, os.path.getsize(file_path))
         return file_uuid, 201
     logger.log(filename, ip_address, app.config['HOST'], 'WRITE', 400, -1)
-
-    # remove the number of concurrent requests to the file
-    @after_this_request
-    def remove_request(response):
-
-
     return 'Write Failed', 400
 
 # Endpoint for read method
@@ -66,6 +60,12 @@ def read_file():
     ip_address = request.remote_addr if request.args.get('ip') is None else request.args.get('ip')
     metadata = getattr(g, 'metadata', None)
     filename = request.args.get('uuid')
+    metadata.add_concurrent_request(file_uuid)
+    # remove the number of concurrent requests to the file
+    @after_this_request
+    def remove_request(response):
+        metadata.remove_concurrent_request(file_uuid)
+
     file_path = UPLOAD_FOLDER + '/' + secure_filename(filename)
     if (metadata.is_file_exist_locally(filename, app.config['HOST']) is not None):
         logger.log(filename, ip_address, app.config['HOST'], 'READ', 200, os.path.getsize(file_path))
