@@ -71,7 +71,7 @@ class MetadataManager:
             self.cursor.execute('UPDATE Stats SET connections=? WHERE uuid=?', (current_connection, uuid))
         else:
             self.cursor.execute('INSERT INTO Stats VALUES(?,?)', (uuid, 1))
-        self.cursor.commit()
+        self.conn.commit()
 
     # Removes a concurrent request of a uuid from the server.
     def remove_concurrent_request(self, uuid):
@@ -83,14 +83,18 @@ class MetadataManager:
                 self.cursor.execute('DELETE FROM Stats WHERE uuid=?', (uuid,))
             else:
                 self.cursor.execute('UPDATE Stats SET connections=? WHERE uuid=?', (current_connection, uuid))
-        self.cursor.commit()
+        self.conn.commit()
 
     # Add a concurrent request
     def add_concurrent_request(self, uuid):
         self.cursor.execute('SELECT connections FROM Stats WHERE uuid=?', (uuid,))
         current_connection = int(self.cursor.fetchone()[0]) + 1
         self.cursor.execute('UPDATE Stats SET connections=? WHERE uuid=?', (current_connection, uuid))
-        self.cursor.commit()
+        self.conn.commit()
+
+    def update_server(self, server):
+        self.cursor.execute('INSERT INTO KnownServer VALUES (?)', (server,))
+        self.conn.commit()
 
     # Adds the server into the metadata database
     #
