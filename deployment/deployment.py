@@ -23,7 +23,7 @@ CONFIG_FILE = 'deployment.cnf'
 SERVER_LIST_FILE = 'servers.txt'
 METADATA_FILE = 'metadata.db'
 PREFIX = '../'
-FILES_TO_DEPLOY = [ 'server.py', 'client.py', 'metadata_manager.py', 'util.py', 'requirements.txt', 'metadata.sql', 'logger.py', SERVER_LIST_FILE ]
+FILES_TO_DEPLOY = [ 'server.py', 'client.py', 'metadata_manager.py', 'util.py', 'requirements.txt', 'metadata.sql', 'logger.py', 'cache', SERVER_LIST_FILE ]
 RUN_FILES = [ 'server.py' ]
 PROJECT_NAME = 'eecs591'
 
@@ -69,7 +69,7 @@ for section in parser.sections():
 
     # Second, copy the necessary files over to the destination
     for filename in FILES_TO_DEPLOY:
-        scp_command = 'scp ' + PREFIX + filename + ' ' + username + '@' + host + ':' + application_directory + '/' + section
+        scp_command = 'scp -r ' + PREFIX + filename + ' ' + username + '@' + host + ':' + application_directory + '/' + section
         print_command(scp_command)
         os.system(scp_command)
 
