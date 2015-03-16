@@ -17,6 +17,7 @@ class ip_location_cache:
             print 'Data for ' + client_ip[0] + ' found. lat: ' + loc[0] + ', lng: ' + loc[1]
             add_entry(ip_info['ip'], loc[0], loc[1], ip_info['city'], ip_info['region'], ip_info['country'])
             print 'Inserted into database.'
+            return (loc[0], loc[1])
         except ValueError:
             print 'Error retrieving data for ' + client_ip
             pass
@@ -31,8 +32,6 @@ class ip_location_cache:
         self.cursor.execute('SELECT lat, long FROM IpLocationMap WHERE ip=?', (ip,))
         result = self.cursor.fetchone()
         if result is None:
-            add_entry(ip)
-            self.cursor.execute('SELECT lat, long FROM IpLocationMap WHERE ip=?', (ip,))
-            return self.cursor.fetchone()
+            return add_entry(ip)
         else:
             return result
