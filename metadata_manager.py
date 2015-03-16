@@ -58,18 +58,48 @@ class MetadataManager:
 
     # Clear all metadata from the database.
     def clear_metadata(self):
-        self.cursor.execute('DELETE FROM Server WHERE 1=1')
+        self.cursor.execute('DELETE FROM KnownServer WHERE 1=1')
         self.cursor.execute('DELETE FROM FileMap WHERE 1=1')
         self.conn.commit()
+
+    # Adds a concurrent request of a uuid
+    def add_concurrent_request(self, uuid):
+        self.cursor.execute('SELECT connections FROM Stats WHERE uuid=?', (uuid,))
+        result = self.cursor.fetchone()
+        if result is not None:
+            current_connection = int(result[0]) + 1
+            self.cursor.execute('UPDATE Stats SET connections=? WHERE uuid=?', (current_connection, uuid))
+        else:
+            self.cursor.execute('INSERT INTO Stats VALUES(?,?)', (uuid, 1))
+        self.cursor.commit()
+
+    # Removes a concurrent request of a uuid from the server.
+    def remove_concurrent_request(self, uuid):
+        self.cursor.execute('SELECT connections FROM Stats WHERE uuid=?', (uuid,))
+        result = self.cursor.fetchone()
+        if result is not None:
+            current_connection = int(result[0]) - 1
+            if current_connect == 0:
+                self.cursor.execute('DELETE FROM Stats WHERE uuid=?', (uuid,))
+            else:
+                self.cursor.execute('UPDATE Stats SET connections=? WHERE uuid=?', (current_connection, uuid))
+        self.cursor.commit()
+
+    # Add a concurrent request
+    def add_concurrent_request(self, uuid):
+        self.cursor.execute('SELECT connections FROM Stats WHERE uuid=?', (uuid,))
+        current_connection = int(self.cursor.fetchone()[0]) + 1
+        self.cursor.execute('UPDATE Stats SET connections=? WHERE uuid=?', (current_connection, uuid))
+        self.cursor.commit()
 
     # Adds the server into the metadata database
     #
     # params:
     #   server: the server known to this server that it is online
     def update_servers(self, servers):
-        self.cursor.execute('DELETE FROM Server WHERE 1=1')
+        self.cursor.execute('DELETE FROM KnownServer WHERE 1=1')
         for server in servers:
-            self.cursor.execute('INSERT INTO Server VALUES (?)', (server.strip(),))
+            self.cursor.execute('INSERT INTO KnownServer VALUES (?)', (server.strip(),))
             self.conn.commit()
 
     # Closes the connection to the database
