@@ -33,11 +33,11 @@ class LogManager:
 
   # Retrieve last timestamp on database
   #
-  def last_timestamp(self):
-    self.cursor.execute('SELECT timestamp FROM Log ORDER BY timestamp DESC LIMIT 1')
+  def last_timestamp(self, destination_entity):
+    self.cursor.execute('SELECT timestamp FROM Log WHERE destination_entity = ? ORDER BY timestamp DESC LIMIT 1', (destination_entity,))
     result = self.cursor.fetchone()
     if result is None:
-      return 0
+      return None
     return result[0]
 
   # Closes the connection to the database
