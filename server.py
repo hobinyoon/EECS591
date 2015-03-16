@@ -51,6 +51,12 @@ def write_file():
         logger.log(filename, ip_address, app.config['HOST'], 'WRITE', 201, os.path.getsize(file_path))
         return file_uuid, 201
     logger.log(filename, ip_address, app.config['HOST'], 'WRITE', 400, -1)
+
+    # remove the number of concurrent requests to the file
+    @after_this_request
+    def remove_request(response):
+
+
     return 'Write Failed', 400
 
 # Endpoint for read method
@@ -168,6 +174,20 @@ def teardown_request(exception):
     if metadata is not None:
         metadata.close_connection()
 
+# Setup the callback method.
+@app.after_request
+def call_after_request_callbacks(response):
+    for callback in getattr(g, 'after_request_callbacks'):
+        callback(response)
+    return response
+
+# Helper method for executing function after the request is done.
+def after_this_request(f):
+    if not hasattr(g, 'after_request_callbacks'):
+        g.after_request_callbacks = []
+    g.after_request_callbacks.append(f)
+    return f
+
 # Entry point for the app
 if __name__ == '__main__':
     # Default values
@@ -195,7 +215,7 @@ if __name__ == '__main__':
 
     # Update the metadata
     metadata = metadata_manager.MetadataManager()
-    metadata.clear_metadata()
+    metadata.clear_metadata() # shouldn't do this!
     metadata.update_servers(server_list)
     metadata.close_connection()
 
