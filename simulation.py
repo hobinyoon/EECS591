@@ -3,8 +3,8 @@
 import replay_log
 import util
 
-SOUCE_IP_INDEX =  2
-DESTINATION_IP_INDEX = 3
+SOURCE_INDEX =  2
+DESTINATION_INDEX = 3
 
 def run_simulation(request_log_file):
   # replaying request log
