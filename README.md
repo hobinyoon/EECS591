@@ -29,19 +29,10 @@ The aggregator will retrieve log entries from all known servers and store the re
 
 ### Description
 
-### Before you run the simulation
-
-1. **Install pyipinfodb (an API for transfering ip address to geolocation) and geopy** 
-  ```
-  pip install git+git://github.com/markmossberg/pyipinfodb.git
-  
-  pip install geopy
-  ```
-
 ### Usage
 
 1. **Run simulation** 
   ```
-  python simulation_driver.py
+  python simulation.py
   ```
 
