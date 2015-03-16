@@ -23,3 +23,16 @@ The aggregator will retrieve log entries from all known servers and store the re
   ```
   python aggregator/aggregator.py --date 2015-03-01
   ```
+
+
+## Simulation 
+
+### Description
+
+### Usage
+
+1. **Run simulation** 
+  ```
+  python simulation.py
+  ```
+
