@@ -7,6 +7,8 @@ import os.path
 import urllib
 import uuid
 
+from ConfigParser import SafeConfigParser
+
 # Uses Flask for RESTful API
 import requests
 
@@ -22,6 +24,7 @@ import util
 UPLOAD_FOLDER = 'uploaded/'
 SERVER_LIST_FILE = 'servers.txt'
 LOG_DIRECTORY = 'logs'
+SERVER_CONFIG_FILE = 'server.cnf'
 
 # Setup for the app
 app = Flask(__name__)
@@ -61,7 +64,18 @@ def read_file():
     ip_address = request.remote_addr if request.args.get('ip') is None else request.args.get('ip')
     metadata = getattr(g, 'metadata', None)
     filename = request.args.get('uuid')
-    metadata.add_concurrent_request(file_uuid)
+    concurrent_requests = metadata.add_concurrent_request(file_uuid)
+    if concurrent_requests is not None:
+        # Make sure that the number of concurrent requests is under k.
+        # If not, replicate to another server.
+        if int(concurrent_requests) >= app.config['k']:
+            # 1) Find the closest server.
+            target_server = metadata.get_closest_server()
+            # 2) Copy the file to that server.
+            clone_file(request.args.get('uuid'), target_server, 'DISTRIBUTE_REPLICATE', ip_address)
+    else:
+        raise Exception('Something fishy is going on... Should have at least one request')
+
     # remove the number of concurrent requests to the file
     @after_this_request
     def remove_request(response):
@@ -103,13 +117,11 @@ def file_exists():
         return 'File not found', 404
 
 # Helper method for sending a file to another server
-def move_file(request, method, ip_address):
+def clone_file(file_uuid, destination, method, ip_address):
     metadata = getattr(g, 'metadata', None)
-    file_uuid = request.args.get('uuid')
     file_path = UPLOADED_FOLDER + '/' + file_uuid
     if not os.path.exists(file_path):
         return make_response('File not found', 404)
-    destination = request.args.get('destination')
     destination_with_endpoint = destination + '/write'
     files = {'file': open(file_path, 'rb')}
     write_request = requests.post(url, files)
@@ -123,7 +135,7 @@ def move_file(request, method, ip_address):
 def transfer():
     ip_address = request.remote_addr if request.args.get('ip') is None else request.args.get('ip')
     metadata = getattr(g, 'metadata', None)
-    write_request = move_file(request, 'TRANSFER', ip_address)
+    write_request = clone_file(request.args.get('uuid'), request.args.get('destination'), 'TRANSFER', ip_address)
     if write_request.status_code == 201:
         os.remove(os.path.join(app.config['UPLOAD_FOLDER'], file_uuid))
         metadata.delete_file_stored(request.args.get('uuid'), app.config['HOST'])
@@ -133,7 +145,7 @@ def transfer():
 @app.route('/replicate', methods=['PUT'])
 def replicate():
     ip_address = request.remote_addr if request.args.get('ip') is None else request.args.get('ip')
-    write_request = move_file(request, 'REPLICATE', ip_address)
+    write_request = clone_file(request.args.get('uuid'), request.args.get('destination'), 'REPLICATE', ip_address)
     return write_request
 
 # Deletes the file. This API call should not be open to all users.
@@ -206,10 +218,12 @@ if __name__ == '__main__':
     port = '5000'
     server_list = []
 
+    # Argument parsing
     parser = argparse.ArgumentParser()
     parser.add_argument('serverlist', help='the file containing the host of other servers')
     parser.add_argument('--host', help='the host for the server')
     parser.add_argument('--port', help='the port for deployment')
+    parser.add_argument('--use-dist-replication', action='store_true', help='enables the distributed replication')
 
     args = vars(parser.parse_args())
     server_list_file = args['serverlist']
@@ -228,10 +242,18 @@ if __name__ == '__main__':
     metadata = metadata_manager.MetadataManager()
     metadata.clear_metadata() # shouldn't do this!
     current_machine = (hostname + ':' + port)
-    for server in server_list:
-        # Compute the distance between this server to the other server.
-        if server != current_machine:
-            metadata.update_server(server)
+    if args['use_dist_replication']:
+        # Read configuration file
+        parser = SafeConfigParser()
+        parser.read(CONFIG_FILE)
+        app.config['k'] = parser.get('distributed_replication_configuration', 'k')
+
+        for server in server_list:
+            # Compute the distance between this server to the other server.
+            if server != current_machine:
+                metadata.update_server(server)
+    else:
+        metadata.update_servers(server_list)
     metadata.close_connection()
 
     # Start Flask
