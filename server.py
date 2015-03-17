@@ -226,7 +226,11 @@ if __name__ == '__main__':
     # Update the metadata
     metadata = metadata_manager.MetadataManager()
     metadata.clear_metadata() # shouldn't do this!
-    metadata.update_servers(server_list)
+    current_machine = (hostname + ':' + port)
+    for server in server_list:
+        # Compute the distance between this server to the other server.
+        if server != current_machine:
+            metadata.update_server(server)
     metadata.close_connection()
 
     # Start Flask
