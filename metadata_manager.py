@@ -60,6 +60,7 @@ class MetadataManager:
     def clear_metadata(self):
         self.cursor.execute('DELETE FROM KnownServer WHERE 1=1')
         self.cursor.execute('DELETE FROM FileMap WHERE 1=1')
+        self.cursor.execute('DELETE FROM Stats WHERE 1=1')
         self.conn.commit()
 
     # Adds a concurrent request of a uuid
@@ -72,6 +73,17 @@ class MetadataManager:
         else:
             self.cursor.execute('INSERT INTO Stats VALUES(?,?)', (uuid, 1))
         self.conn.commit()
+        return get_concurrent_request(uuid)
+
+
+    # Returns the number of concurrent requests for the specified uuid.
+    def get_concurrent_request(self, uuid):
+        self.cursor.execute('SELECT connections FROM Stats WHERE uuid=?', (uuid,))
+        result = self.cursor.fetchone()
+        if result is not None:
+            return result[0]
+        else:
+            return None
 
     # Removes a concurrent request of a uuid from the server.
     def remove_concurrent_request(self, uuid):
@@ -93,8 +105,8 @@ class MetadataManager:
         self.conn.commit()
 
     # Adds the server into the metadata database.
-    def update_server(self, server):
-        self.cursor.execute('INSERT INTO KnownServer VALUES (?)', (server.strip(),))
+    def update_server(self, server, distance):
+        self.cursor.execute('INSERT INTO KnownServer VALUES (?)', (server.strip(), distance))
         self.conn.commit()
 
     # Adds the server into the metadata database
@@ -102,9 +114,8 @@ class MetadataManager:
     # params:
     #   server: the server known to this server that it is online
     def update_servers(self, servers):
-        self.cursor.execute('DELETE FROM KnownServer WHERE 1=1')
         for server in servers:
-            self.cursor.execute('INSERT INTO KnownServer VALUES (?)', (server.strip(),))
+            self.cursor.execute('INSERT INTO KnownServer VALUES (?, ?)', (server.strip(), -1))
             self.conn.commit()
 
     # Closes the connection to the database
