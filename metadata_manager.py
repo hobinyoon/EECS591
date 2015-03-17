@@ -92,8 +92,9 @@ class MetadataManager:
         self.cursor.execute('UPDATE Stats SET connections=? WHERE uuid=?', (current_connection, uuid))
         self.conn.commit()
 
+    # Adds the server into the metadata database.
     def update_server(self, server):
-        self.cursor.execute('INSERT INTO KnownServer VALUES (?)', (server,))
+        self.cursor.execute('INSERT INTO KnownServer VALUES (?)', (server.strip(),))
         self.conn.commit()
 
     # Adds the server into the metadata database
