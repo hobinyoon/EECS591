@@ -5,57 +5,27 @@ import os
 import requests
 import sqlite3
 
+import sys
+sys.path.insert(0, os.path.normpath('../cache'))
+
+import ip_location_cache
+
 # Config
 LOG_DATABASE = os.path.normpath('../aggregator/aggregated_logs.db')
-VOLLEY_DATABASE = os.path.normpath('volley.db')
-VOLLEY_INITIALIZATION = os.path.normpath('volley.sql')
 
 class Volley:
 
   def __init__(self):
-    self.conn = sqlite3.connect(VOLLEY_DATABASE)
-    with open(VOLLEY_INITIALIZATION, 'rb') as initialization_file:
-      self.conn.executescript(initialization_file.read())
-    self.cursor = self.conn.cursor()
     self.log_conn = sqlite3.connect(LOG_DATABASE)
     self.log_cursor = self.log_conn.cursor()
-
-  # Phase 1: Compute Initial Placement
-  # def place_initial(self):
-    # self.map_ip_to_locations()
-
+    self.ip_cache = ip_location_cache.ip_location_cache()
 
   # Closes the connection to the database
   def close_connection(self):
     self.log_conn.close()
-    self.conn.close()
 
-  # Maps all distinct source_entity IP addresses to latitude and longitude in database
-  def map_ip_to_locations(self):
-    # Find unique IPs
-    self.log_cursor.execute('SELECT DISTINCT source_entity FROM Log')
-    client_ip = self.log_cursor.fetchone()
-
-    while client_ip is not None:
-      # Check already-mapped IPs
-      self.cursor.execute('SELECT ip, lat, lng FROM Client WHERE ip = ?', client_ip)
-      
-      if self.cursor.fetchone() is None:
-        print 'Retrieving data for ' + client_ip[0] + '...'
-        r = requests.get('http://ipinfo.io/' + client_ip[0] + '/json')
-        try:
-          ip_info = r.json()
-          loc = ip_info['loc'].split(',')
-          print 'Data for ' + client_ip[0] + ' found. lat: ' + loc[0] + ', lng: ' + loc[1]
-          self.cursor.execute('INSERT INTO Client VALUES (?, ?, ?, ?, ?, ?)',
-            (ip_info['ip'], loc[0], loc[1],
-             ip_info['city'], ip_info['region'], ip_info['country']))
-          self.conn.commit()
-          print 'Inserted into database.'
-        except ValueError:
-          print 'Error retrieving data for ' + client_ip
-          pass
-      client_ip = self.log_cursor.fetchone()
+  # Phase 1: Compute Initial Placement
+  # def place_initial(self):
 
   # Convert from latitude to radians from the North Pole
   def convert_lat_to_radians(self, lat):
@@ -66,6 +36,8 @@ class Volley:
 
   # Convert longitude to radians
   def convert_lng_to_radians(self, lng):
+    # Add 180 to make range [0, 360]
+    # lng = lng + 180
     return math.radians(lng)
 
   # Convert from radians from the North Pole to degrees
@@ -77,7 +49,30 @@ class Volley:
 
   # Convert longitude to degrees
   def convert_lng_to_degrees(self, lng):
+    # lng = math.degrees(lng)
+    # return lng - 180
     return math.degrees(lng)
+
+  # Normalize radian values from [-Inf, Inf] to specified range - default = [0, 2pi)
+  def normalize_radians(self, lng, min_val = 0, max_val = (2 * math.pi)):
+    if math.fabs(max_val - min_val - (2 * math.pi)) >= 0.001:
+      raise ValueError('Range for function must be around 2*pi.')
+    while lng < min_val:
+      lng = lng + (2 * math.pi)
+    while lng >= max_val:
+      lng = lng - (2 * math.pi)
+    return lng
+
+  # Find the average longitude of two points where longitude is given from [0, Inf]
+  def find_avg_lng(self, lng_a, lng_b):
+    # Need to normalize to [0, 2pi) so that arithmetic mean comes out to a reasonable value
+    lng_a = self.normalize_radians(lng_a)
+    lng_b = self.normalize_radians(lng_b)
+    
+    # Here, normalize to [-pi, pi) for longitude
+    return self.normalize_radians((lng_a + lng_b) / 2, -1 * math.pi, math.pi)
+
+
 
   # Helper for weighted_spherical_mean, defined in Volley paper
   #
@@ -98,42 +93,23 @@ class Volley:
 
     gamma_numerator = math.sin(lat_b) * math.sin(lat_a) * math.sin(lng_b - lng_a)
     gamma_denominator = math.cos(lat_a) - (math.cos(d) * math.cos(lat_b))
-    gamma = math.atan(gamma_numerator / gamma_denominator)
+    gamma = math.atan2(gamma_numerator, gamma_denominator)
 
     beta_numerator = math.sin(lat_b) * math.sin(weight * d) * math.sin(gamma)
     beta_denominator = math.cos(weight * d) - (math.cos(lat_a) * math.cos(lat_b))
-    beta = math.atan(beta_numerator / beta_denominator)
+    beta = math.atan2(beta_numerator, beta_denominator)
 
     lat_c_first = math.cos(weight * d) * math.cos(lat_b)
     lat_c_second = math.sin(weight * d) * math.sin(lat_b) * math.cos(gamma)
-
-    # Trying two different options to get calculations to work for trivial 2 location case...
-
-    # A: as written in Volley paper
     lat_c = math.acos(lat_c_first + lat_c_second)
-    
-    # B: random hack
-    # if lat_b > lat_a:
-    #   lat_c = math.acos(lat_c_first + lat_c_second)
-    # else:
-    #   lat_c = math.acos(lat_c_first - lat_c_second)
-
     lat_c = self.convert_lat_to_degrees(lat_c)
 
-    # Trying two different options to get calculations to work for trivial 2 location case...
-    # A: as written in Volley paper
-    lng_c = lng_b - beta
-
-    # B: random hack
-    # beta = math.fabs(beta)
-    # if lng_b > lng_a:
-    #   lng_c = lng_b - beta
-    # else:
-    #   lng_c = lng_b + beta
-
+    # Find an average of coming from either direction for antipodal nodes
+    lng_c_1 = lng_b - beta
+    lng_c_2 = lng_a + beta
+    lng_c = self.find_avg_lng(lng_c_1, lng_c_2)
     lng_c = self.convert_lng_to_degrees(lng_c)
 
-    print "INTERP: " + str((lat_c, lng_c))
     return (lat_c, lng_c)
 
   # Recursive helper for weighted_spherical_mean
@@ -147,11 +123,11 @@ class Volley:
     
     length = len(weights)
 
+    print '------ Weighted spherical mean -------- '
     print 'Length: ' + str(length)
     print 'WEIGHTS: ' + str(weights)
     print 'LOCATIONS: ' + str(locations)
 
-    # total_weight = sum(weights)
     current_weight = float(weights.pop())
     weight = current_weight / total_weight
     location = locations.pop()
@@ -170,6 +146,8 @@ class Volley:
   #   uuid: uuid of the data item
   def weighted_spherical_mean(self, uuid):
     # Find results for each source entity
+
+    # TODO: WHAT KIND OF REQUESTS? GET ONLY SUCCESSFUL READ REQUESTS?
     self.log_cursor.execute('SELECT source_entity, COUNT(source_entity) AS weight FROM Log '
       'WHERE uuid = ? GROUP BY source_entity', (uuid,))
     requests = self.log_cursor.fetchall()
@@ -180,17 +158,11 @@ class Volley:
     locations = []
 
     for req in requests:
-      self.cursor.execute('SELECT lat, lng from Client WHERE ip = ?', (req[0],))
-      client_loc = self.cursor.fetchone()
+      client_loc = self.ip_cache.get_lat_lon_from_ip(req[0])
       if client_loc is None:
         raise NameError('Could not find client ' + req[0] + ' in client DB.')
       locations.append(client_loc)
       weights.append(req[1])
-    
-    # TODO: For a trivial two-point case, reversing it breaks it.. Why?
-    # locations.reverse()
-
-    print locations
 
     total_weight = float(sum(weights))
     return self.weighted_spherical_mean_helper(total_weight, weights, locations)
