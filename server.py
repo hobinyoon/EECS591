@@ -182,10 +182,6 @@ def shutdown():
     func()
     return 'Server is shutting down...', 200
 
-@app.route('/earliestDate', methods=['GET'])
-def get_earliest_date():
-    return
-
 # Connect to the metadata database
 @app.before_request
 def before_request():
