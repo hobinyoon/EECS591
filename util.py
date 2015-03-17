@@ -8,6 +8,7 @@ from geopy.distance import great_circle
 API_KEY = 'f096f204a09d53c278c457d8de90ba1aca8d9ede50a6399849045954a4e23535'
 
 # This function may be replaced by cached version calculate distance
+# The distance returned is in kilometers.
 def get_distance(ip_addr1, ip_addr2):
     ip_translator = pyipinfodb.IPInfo(API_KEY)
     location1 = ip_translator.get_city(ip_addr1)
