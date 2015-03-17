@@ -106,7 +106,7 @@ class MetadataManager:
 
     # Returns the closest server to our server.
     def find_closest_server(self):
-        self.cursor.execute('SELECT ks1.server FROM KnownServer ks1 WHERE distance=(SELECT MIN(distance) FROM KnownServer ks2)')
+        self.cursor.execute('SELECT ks1.server FROM KnownServer ks1 WHERE ks1.distance=(SELECT MIN(distance) FROM KnownServer ks2)')
 
     # Adds the server into the metadata database.
     def update_server(self, server, distance):
