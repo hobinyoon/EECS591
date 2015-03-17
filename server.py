@@ -64,22 +64,23 @@ def read_file():
     ip_address = request.remote_addr if request.args.get('ip') is None else request.args.get('ip')
     metadata = getattr(g, 'metadata', None)
     filename = request.args.get('uuid')
-    concurrent_requests = metadata.add_concurrent_request(file_uuid)
-    if concurrent_requests is not None:
-        # Make sure that the number of concurrent requests is under k.
-        # If not, replicate to another server.
-        if int(concurrent_requests) >= app.config['k']:
-            # 1) Find the closest server.
-            target_server = metadata.get_closest_server()
-            # 2) Copy the file to that server.
-            clone_file(request.args.get('uuid'), target_server, 'DISTRIBUTE_REPLICATE', ip_address)
-    else:
-        raise Exception('Something fishy is going on... Should have at least one request')
+    if app.config['use_dist_replication']:
+        concurrent_requests = metadata.add_concurrent_request(file_uuid)
+        if concurrent_requests is not None:
+            # Make sure that the number of concurrent requests is under k.
+            # If not, replicate to another server.
+            if int(concurrent_requests) >= app.config['k']:
+                # 1) Find the closest server.
+                target_server = metadata.get_closest_server()
+                # 2) Copy the file to that server.
+                clone_file(request.args.get('uuid'), target_server, 'DISTRIBUTE_REPLICATE', ip_address)
+        else:
+            raise Exception('Something fishy is going on... Should have at least one request')
 
-    # remove the number of concurrent requests to the file
-    @after_this_request
-    def remove_request(response):
-        metadata.remove_concurrent_request(file_uuid)
+        # remove the number of concurrent requests to the file
+        @after_this_request
+        def remove_request(response):
+            metadata.remove_concurrent_request(file_uuid)
 
     file_path = UPLOAD_FOLDER + '/' + secure_filename(filename)
     if (metadata.is_file_exist_locally(filename, app.config['HOST']) is not None):
@@ -200,8 +201,9 @@ def teardown_request(exception):
 # Setup the callback method.
 @app.after_request
 def call_after_request_callbacks(response):
-    for callback in getattr(g, 'after_request_callbacks'):
-        callback(response)
+    if hasattr(g, 'after_request_callbacks'):
+        for callback in getattr(g, 'after_request_callbacks'):
+            callback(response)
     return response
 
 # Helper method for executing function after the request is done.
@@ -227,6 +229,7 @@ if __name__ == '__main__':
 
     args = vars(parser.parse_args())
     server_list_file = args['serverlist']
+    app.config['use_dist_replication'] = args['use_dist_replication']
 
     # Populate when there are arguments
     if args['host'] is not None:
@@ -245,7 +248,7 @@ if __name__ == '__main__':
     if args['use_dist_replication']:
         # Read configuration file
         parser = SafeConfigParser()
-        parser.read(CONFIG_FILE)
+        parser.read(SERVER_CONFIG_FILE)
         app.config['k'] = parser.get('distributed_replication_configuration', 'k')
 
         for server in server_list:
