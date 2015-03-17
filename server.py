@@ -39,19 +39,21 @@ def redirect_endpoint():
 @app.route('/write', methods=['POST'])
 def write_file():
     ip_address = request.remote_addr if request.args.get('ip') is None else request.args.get('ip')
-    file = request.files['file']
-    if file is not None:
+    if 'file' in request.files:
+        file = request.files['file']
         metadata = getattr(g, 'metadata', None)
         filename = secure_filename(file.filename)
         file_uuid = str(uuid.uuid4())
         if not os.path.isdir(app.config['UPLOAD_FOLDER']):
             os.makedirs(app.config['UPLOAD_FOLDER'])
-        file.save(os.path.join(app.config['UPLOAD_FOLDER'], file_uuid))
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], file_uuid)
+        file.save(file_path)
         metadata.update_file_stored(file_uuid, app.config['HOST'])
-        logger.log(filename, ip_address, app.config['HOST'], 'WRITE', 201, os.path.getsize(file_path))
+        logger.log(file_uuid, ip_address, app.config['HOST'], 'WRITE', 201, os.path.getsize(file_path))
         return file_uuid, 201
-    logger.log(filename, ip_address, app.config['HOST'], 'WRITE', 400, -1)
-    return 'Write Failed', 400
+    else:
+        logger.log('NO_FILE', ip_address, app.config['HOST'], 'WRITE', 400, -1)
+        return 'Write Failed', 400
 
 # Endpoint for read method
 @app.route('/read', methods=['GET'])
@@ -143,8 +145,13 @@ def delete():
 # Returns the log.
 @app.route('/logs', methods=['GET'])
 def logs():
-    date = request.args.get('date')
-    file_name = date + '.log'
+    if 'date' in request.args:
+        date = request.args.get('date')
+        file_name = date + '.log'
+    else:
+        list_of_files = os.listdir(LOG_DIRECTORY)
+        list_of_files.sort()
+        file_name = list_of_files[0]
     return send_from_directory(LOG_DIRECTORY, secure_filename(file_name))
 
 # Shuts down the server
@@ -155,6 +162,10 @@ def shutdown():
         raise RuntimeError('Not running with the Werkzeug Server')
     func()
     return 'Server is shutting down...', 200
+
+@app.route('/earliestDate', methods=['GET'])
+def get_earliest_date():
+    return
 
 # Connect to the metadata database
 @app.before_request

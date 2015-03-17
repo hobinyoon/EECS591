@@ -63,13 +63,17 @@ def replay_log(log_file, request_to_file_uuid):
     if not succeed:
       raise ValueError('request failed with file uuid: ', file_uuid)
 
-if __name__ == '__main__':
+def simulate_requests(request_log_file):
   if not os.path.exists(CLIENT_UPLOAD_FOLDER):
     os.makedirs(CLIENT_UPLOAD_FOLDER)
   if not os.path.exists(CLIENT_DOWNLOAD_FOLDER):
     os.makedirs(CLIENT_DOWNLOAD_FOLDER)
+  request_map = populate_server_with_log(request_log_file)
+  start_time = datetime.utcnow()
+  end_time = datetime.utcnow()
+  replay_log(request_log_file, request_map)
+  return (start_time, end_time)
 
-  log_file = 'sample_log'
-  request_map = populate_server_with_log(log_file)
-  replay_log(log_file, request_map)
+if __name__ == '__main__':
+  simulate_requests('sample_log')
 
