@@ -249,9 +249,11 @@ if __name__ == '__main__':
         app.config['k'] = parser.get('distributed_replication_configuration', 'k')
 
         for server in server_list:
-            # Compute the distance between this server to the other server.
             if server != current_machine:
-                metadata.update_server(server)
+                # Compute the distance between this server to the other server.
+                tokenized_server = server.split(':')
+                distance = util.get_distance(hostname, tokenized_server[0])
+                metadata.update_server(server, distance)
     else:
         metadata.update_servers(server_list)
     metadata.close_connection()
