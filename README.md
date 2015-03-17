@@ -14,12 +14,17 @@ The aggregator will retrieve log entries from all known servers and store the re
   python aggregator/aggregator.py
   ```
 
-2. **Update all logs beginning at Unix timestamp**
+2. **Update all new records (begin from last-aggregated timestamp)**
+  ```
+  python aggregator/aggregator.py --update
+  ```
+
+3. **Update all logs beginning at Unix timestamp**
   ```
   python aggregator/aggregator.py --time 1425917113
   ```
 
-3. **Update all logs beginning at date**
+4. **Update all logs beginning at date**
   ```
   python aggregator/aggregator.py --date 2015-03-01
   ```
