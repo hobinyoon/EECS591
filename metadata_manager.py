@@ -104,6 +104,10 @@ class MetadataManager:
         self.cursor.execute('UPDATE Stats SET connections=? WHERE uuid=?', (current_connection, uuid))
         self.conn.commit()
 
+    # Returns the closest server to our server.
+    def find_closest_server(self):
+        self.cursor.execute('SELECT ks1.server FROM KnownServer ks1 WHERE distance=(SELECT MIN(distance) FROM KnownServer ks2)')
+
     # Adds the server into the metadata database.
     def update_server(self, server, distance):
         self.cursor.execute('INSERT INTO KnownServer VALUES (?)', (server.strip(), distance))
