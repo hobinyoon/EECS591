@@ -110,7 +110,7 @@ class MetadataManager:
 
     # Adds the server into the metadata database.
     def update_server(self, server, distance):
-        self.cursor.execute('INSERT INTO KnownServer VALUES (?)', (server.strip(), distance))
+        self.cursor.execute('INSERT INTO KnownServer VALUES (?, ?)', (server.strip(), distance))
         self.conn.commit()
 
     # Adds the server into the metadata database
