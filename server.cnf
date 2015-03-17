@@ -1,6 +1,6 @@
 [generic]
-# The storage limit in Megabytes.
-storage_limit=5
+# The storage limit in Bytes.
+storage_limit=5242880
 
 [distributed_replication_configuration]
 

@@ -173,6 +173,17 @@ def logs():
         file_name = list_of_files[0]
     return send_from_directory(LOG_DIRECTORY, secure_filename(file_name))
 
+@app.route('/can_move_file', method=['GET'])
+def can_move_file():
+    file_size = float(request.args.get('file_size'))
+    storage_limit = app.config['storage_limit']
+    current_storage = sum(os.path.getsize(f) for f in os.listdir(UPLOAD_FOLDER) if os.path.isfile(f))
+    space_left = storage_limit - current_storage
+    if file_size < space_left:
+        return 'Yes', 200
+    else:
+        return 'Too large', 413
+
 # Shuts down the server
 @app.route('/shutdown', methods=['GET'])
 def shutdown():
