@@ -1,5 +1,11 @@
+[generic]
+# The storage limit in Megabytes.
+storage_limit=5
+
 [distributed_replication_configuration]
+
 # The maximum radius from the current server
 r_max=100000000
+
 # The maximum concurrent number of requests to the file
 k=20

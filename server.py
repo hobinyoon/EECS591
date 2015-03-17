@@ -241,10 +241,12 @@ if __name__ == '__main__':
     metadata = metadata_manager.MetadataManager()
     metadata.clear_metadata() # shouldn't do this!
     current_machine = (hostname + ':' + port)
+
+    # Read configuration file
+    parser = SafeConfigParser()
+    parser.read(SERVER_CONFIG_FILE)
+    app.config['storage_limit'] = parser.get('generic', 'storage_limit')
     if args['use_dist_replication']:
-        # Read configuration file
-        parser = SafeConfigParser()
-        parser.read(SERVER_CONFIG_FILE)
         app.config['k'] = parser.get('distributed_replication_configuration', 'k')
 
         for server in server_list:
