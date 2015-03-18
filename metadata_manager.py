@@ -58,9 +58,9 @@ class MetadataManager:
 
     # Clear all metadata from the database.
     def clear_metadata(self):
-        self.cursor.execute('DELETE FROM KnownServer WHERE 1=1')
-        self.cursor.execute('DELETE FROM FileMap WHERE 1=1')
-        self.cursor.execute('DELETE FROM Stats WHERE 1=1')
+        self.cursor.execute('DELETE FROM KnownServer')
+        self.cursor.execute('DELETE FROM FileMap')
+        self.cursor.execute('DELETE FROM Stats')
         self.conn.commit()
 
     # Adds a concurrent request of a uuid
@@ -78,35 +78,24 @@ class MetadataManager:
 
     # Returns the number of concurrent requests for the specified uuid.
     def get_concurrent_request(self, uuid):
-        self.cursor.execute('SELECT connections FROM Stats WHERE uuid=?', (uuid,))
+        self.cursor.execute('SELECT count(*) FROM Stats WHERE uuid=?', (uuid,))
         result = self.cursor.fetchone()
-        if result is not None:
-            return result[0]
-        else:
-            return None
+        return result[0]
 
     # Removes a concurrent request of a uuid from the server.
-    def remove_concurrent_request(self, uuid):
-        self.cursor.execute('SELECT connections FROM Stats WHERE uuid=?', (uuid,))
-        result = self.cursor.fetchone()
-        if result is not None:
-            current_connection = int(result[0]) - 1
-            if current_connect == 0:
-                self.cursor.execute('DELETE FROM Stats WHERE uuid=?', (uuid,))
-            else:
-                self.cursor.execute('UPDATE Stats SET connections=? WHERE uuid=?', (current_connection, uuid))
+    def remove_concurrent_request(self, uuid, request_id):
+        self.cursor.execute('DELETE FROM Connections WHERE uuid=? AND request_id=?', (uuid, request_id))
         self.conn.commit()
 
     # Add a concurrent request
-    def add_concurrent_request(self, uuid):
-        self.cursor.execute('SELECT connections FROM Stats WHERE uuid=?', (uuid,))
-        current_connection = int(self.cursor.fetchone()[0]) + 1
-        self.cursor.execute('UPDATE Stats SET connections=? WHERE uuid=?', (current_connection, uuid))
+    def add_concurrent_request(self, uuid, request_id):
+        self.cursor.execute('INSERT INTO Connections VALUES (?, ?)', (uuid, request_id))
         self.conn.commit()
 
     # Returns the closest server to our server.
     def find_closest_server(self):
         self.cursor.execute('SELECT ks1.server FROM KnownServer ks1 WHERE ks1.distance=(SELECT MIN(distance) FROM KnownServer ks2)')
+        return self.cursor.fetchone()
 
     # Adds the server into the metadata database.
     def update_server(self, server, distance):
