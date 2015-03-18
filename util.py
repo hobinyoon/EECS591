@@ -5,15 +5,10 @@ import requests
 
 from geopy.distance import great_circle
 
-API_KEY = 'f096f204a09d53c278c457d8de90ba1aca8d9ede50a6399849045954a4e23535'
-
-# This function may be replaced by cached version calculate distance
-def get_distance(ip_addr1, ip_addr2):
-    ip_translator = pyipinfodb.IPInfo(API_KEY)
-    location1 = ip_translator.get_city(ip_addr1)
-    location2 = ip_translator.get_city(ip_addr2)
-    pt1 = geopy.Point(location1['latitude'], location1['longitude'])
-    pt2 = geopy.Point(location2['latitude'], location2['longitude'])
+# get distance from two (lat,log) pairs
+def get_distance(location1, location2):
+    pt1 = geopy.Point(location1[0], location1[1])
+    pt2 = geopy.Point(location2[0], location2[1])
     dist = great_circle(pt1, pt2).km
     return dist
 
