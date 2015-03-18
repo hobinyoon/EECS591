@@ -179,10 +179,11 @@ def can_move_file():
     storage_limit = app.config['storage_limit']
     current_storage = sum(os.path.getsize(f) for f in os.listdir(UPLOAD_FOLDER) if os.path.isfile(f))
     space_left = int(storage_limit) - current_storage
+    response_message = space_left
     if file_size < space_left:
-        return 'Yes', 200
+        return str(response_message), 200
     else:
-        return 'Too large', 413
+        return str(response_message), 413
 
 # Shuts down the server
 @app.route('/shutdown', methods=['GET'])
@@ -251,7 +252,7 @@ if __name__ == '__main__':
 
     # Update the metadata
     metadata = metadata_manager.MetadataManager()
-    current_machine = (hostname + ':' + port)
+    current_machine = hostname + ':' + port
     if args['clear_metadata'] is not None and args['clear_metadata']:
         print('Clearing metadata...')
         metadata.clear_metadata() # shouldn't do this!
@@ -275,5 +276,5 @@ if __name__ == '__main__':
     metadata.close_connection()
 
     # Start Flask
-    app.config['HOST'] = hostname + ':' + port # todo: not sure if this is correct.
+    app.config['HOST'] = current_machine # todo: not sure if this is correct.
     app.run(host='0.0.0.0', port=int(port), debug=True)
