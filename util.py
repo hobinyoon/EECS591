@@ -2,19 +2,23 @@
 import geopy
 import pyipinfodb
 import requests
+import sys
+sys.path.insert(0, 'cache')
 
 from geopy.distance import great_circle
 
-API_KEY = 'f096f204a09d53c278c457d8de90ba1aca8d9ede50a6399849045954a4e23535'
+import ip_location_cache
 
 # This function may be replaced by cached version calculate distance
 # The distance returned is in kilometers.
 def get_distance(ip_addr1, ip_addr2):
-    ip_translator = pyipinfodb.IPInfo(API_KEY)
-    location1 = ip_translator.get_city(ip_addr1)
-    location2 = ip_translator.get_city(ip_addr2)
-    pt1 = geopy.Point(location1['latitude'], location1['longitude'])
-    pt2 = geopy.Point(location2['latitude'], location2['longitude'])
+    ip_cache = ip_location_cache.ip_location_cache()
+    location1 = ip_cache.get_lat_lon_from_ip(ip_addr1)
+    location2 = ip_cache.get_lat_lon_from_ip(ip_addr2)
+    print location1
+    print location2
+    pt1 = geopy.Point(location1[0], location1[1])
+    pt2 = geopy.Point(location2[0], location2[1])
     dist = great_circle(pt1, pt2).km
     return dist
 

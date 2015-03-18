@@ -23,7 +23,7 @@ class ip_location_cache:
             if 'loc' not in ip_info:
                 raise ValueError
             loc = ip_info['loc'].split(',')
-            print 'Data for ' + ip[0] + ' found. lat: ' + loc[0] + ', lng: ' + loc[1]
+            print 'Data for ' + ip + ' found. lat: ' + loc[0] + ', lng: ' + loc[1]
 
             loc[0] = float(loc[0])
             loc[1] = float(loc[1])
