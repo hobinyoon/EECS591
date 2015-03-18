@@ -15,10 +15,10 @@ def run_simulation(request_log_file):
   # calculate the average latency
   latency_sum = 0
   request_count = 0
-  ip_cache = ip_location_cache.ip_location_cache()
+  ip_cache = ip_location_cache()
   for log in logs:
-    client_loc = ip_cache.find_and_add_entry(log[SOURCE_INDEX])
-    server_loc = ip_cache.find_and_add_entry(log[DESTINATION_INDEX])
+    client_loc = ip_cache.get_lat_lon_from_ip(log[SOURCE_INDEX])
+    server_loc = ip_cache.get_lat_lon_from_ip(log[DESTINATION_INDEX])
     distance = util.get_distance(client_loc, server_loc)
     unit = 1000.0
     latency = distance / unit
