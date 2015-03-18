@@ -73,7 +73,7 @@ def read_file():
                 # 1) Find the closest server.
                 target_server = metadata.get_closest_server()
                 # 2) Copy the file to that server.
-                clone_file(request.args.get('uuid'), target_server, 'DISTRIBUTE_REPLICATE', ip_address)
+                clone_file(request.args.get('uuid'), target_server, 'DISTRIBUTED_REPLICATE', ip_address)
         else:
             raise Exception('Something fishy is going on... Should have at least one request')
 
@@ -233,6 +233,7 @@ if __name__ == '__main__':
     parser.add_argument('--host', help='the host for the server')
     parser.add_argument('--port', help='the port for deployment')
     parser.add_argument('--use-dist-replication', action='store_true', help='enables the distributed replication')
+    parser.add_argument('--clear-metadata', action='store_true', help='the server should clear the metadata upon starting')
 
     args = vars(parser.parse_args())
     server_list_file = args['serverlist']
@@ -250,8 +251,11 @@ if __name__ == '__main__':
 
     # Update the metadata
     metadata = metadata_manager.MetadataManager()
-    metadata.clear_metadata() # shouldn't do this!
     current_machine = (hostname + ':' + port)
+    if args['clear_metadata'] is not None and args['clear_metadata']:
+        print('Clearing metadata...')
+        metadata.clear_metadata() # shouldn't do this!
+
 
     # Read configuration file
     parser = SafeConfigParser()
