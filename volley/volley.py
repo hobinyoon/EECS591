@@ -147,9 +147,8 @@ class Volley:
   def weighted_spherical_mean(self, uuid):
     # Find results for each source entity
 
-    # TODO: WHAT KIND OF REQUESTS? GET ONLY SUCCESSFUL READ REQUESTS?
     self.log_cursor.execute('SELECT source_entity, COUNT(source_entity) AS weight FROM Log '
-      'WHERE uuid = ? GROUP BY source_entity', (uuid,))
+      'WHERE uuid = ? AND request_type = "READ" GROUP BY source_entity', (uuid,))
     requests = self.log_cursor.fetchall()
     if len(requests) == 0:
       return None
