@@ -231,6 +231,8 @@ if __name__ == '__main__':
     # Default values
     hostname = '0.0.0.0'
     port = '5000'
+    processes = 1
+    start_with_debug = False
     server_list = []
 
     # Argument parsing
@@ -238,6 +240,8 @@ if __name__ == '__main__':
     parser.add_argument('serverlist', help='the file containing the host of other servers')
     parser.add_argument('--host', help='the host for the server')
     parser.add_argument('--port', help='the port for deployment')
+    parser.add_argument('--processes', help='specify the number of processes to start the server with')
+    parser.add_argument('--with-debug', action='store_true', help='starts the server with debug mode')
     parser.add_argument('--use-dist-replication', action='store_true', help='enables the distributed replication')
     parser.add_argument('--clear-metadata', action='store_true', help='the server should clear the metadata upon starting')
 
@@ -250,6 +254,11 @@ if __name__ == '__main__':
         hostname = args['host']
     if args['port'] is not None:
         port = args['port']
+    if args['processes'] is not None:
+        processes = args['processes']
+    if args['with_debug'] is not None:
+        start_with_debug = args['with_debug']
+
     # Read the file
     with open(SERVER_LIST_FILE, 'rb') as server_file:
         server_list = server_file.readlines()
@@ -260,7 +269,6 @@ if __name__ == '__main__':
     if args['clear_metadata'] is not None and args['clear_metadata']:
         print('Clearing metadata...')
         metadata.clear_metadata() # shouldn't do this!
-
 
     # Read configuration file
     parser = SafeConfigParser()
@@ -280,4 +288,5 @@ if __name__ == '__main__':
 
     # Start Flask
     app.config['HOST'] = current_machine # todo: not sure if this is correct.
-    app.run(host='0.0.0.0', port=int(port), debug=True)
+    print ('Starting server on ' + current_machine + ' with ' + str(processes) + ' processes and debug turned on: ' + str(start_with_debug))
+    app.run(host='0.0.0.0', port=int(port), processes=int(processes), debug=start_with_debug)
