@@ -63,19 +63,6 @@ class MetadataManager:
         self.cursor.execute('DELETE FROM Connections')
         self.conn.commit()
 
-    # Adds a concurrent request of a uuid
-    def add_concurrent_request(self, uuid):
-        self.cursor.execute('SELECT connections FROM Connections WHERE uuid=?', (uuid,))
-        result = self.cursor.fetchone()
-        if result is not None:
-            current_connection = int(result[0]) + 1
-            self.cursor.execute('UPDATE Connections SET connections=? WHERE uuid=?', (current_connection, uuid))
-        else:
-            self.cursor.execute('INSERT INTO Connections VALUES(?,?)', (uuid, 1))
-        self.conn.commit()
-        return get_concurrent_request(uuid)
-
-
     # Returns the number of concurrent requests for the specified uuid.
     def get_concurrent_request(self, uuid):
         self.cursor.execute('SELECT count(*) FROM Connections WHERE uuid=?', (uuid,))
