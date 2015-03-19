@@ -77,19 +77,33 @@ def update_aggregated_logs(start_timestamp = None):
 
   print 'Updated all logs successfully!'
 
-# Parse arguments for app
-parser = argparse.ArgumentParser(description='Aggregator CLI for EECS591.')
-parser.add_argument('--update', action='store_true', help='Aggregate logs, beginning from timestamp of last log added to aggregated logs')
-parser.add_argument('--time', help='Specify start date in Unix timestamp format.')
-parser.add_argument('--date', help='Specify start date in YYYY-MM-DD format.')
+def get_file_list_and_file_to_server_map:
+  complete_file_set = Set([])
+  replica_map = {}
+  server_list = retrieve_server_list()
+  for server in server_list:
+    file_list = get_file_list_from_server(server)
+    for uuid in file_list:
+      file_list.add(uuid)
+      if uuid not in replica_map:
+        replica_map[uuid] = {}
+      replica_map[uuid][server] = 1
+  return list(complete_file_set), replica_map
 
-args = parser.parse_args()
-if args.update is True:
-  update_aggregated_logs('update')
-elif args.time is not None:
-  update_aggregated_logs(args.time)
-elif args.date is not None:
-  update_aggregated_logs(date_to_timestamp(args.date))
-else:
-  update_aggregated_logs()
-log_mgr.close_connection()
+if __name__ == '__main__':
+  # Parse arguments for app
+  parser = argparse.ArgumentParser(description='Aggregator CLI for EECS591.')
+  parser.add_argument('--update', action='store_true', help='Aggregate logs, beginning from timestamp of last log added to aggregated logs')
+  parser.add_argument('--time', help='Specify start date in Unix timestamp format.')
+  parser.add_argument('--date', help='Specify start date in YYYY-MM-DD format.')
+
+  args = parser.parse_args()
+  if args.update is True:
+    update_aggregated_logs('update')
+  elif args.time is not None:
+    update_aggregated_logs(args.time)
+  elif args.date is not None:
+    update_aggregated_logs(date_to_timestamp(args.date))
+  else:
+    update_aggregated_logs()
+  log_mgr.close_connection()
