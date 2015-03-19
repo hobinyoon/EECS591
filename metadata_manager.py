@@ -84,7 +84,7 @@ class MetadataManager:
 
     # Removes a concurrent request of a uuid from the server.
     def remove_concurrent_request(self, uuid, request_id):
-        self.cursor.execute('DELETE FROM Connections WHERE uuid=? AND request_id=?', (uuid, request_id))
+        self.cursor.execute('DELETE FROM Connections WHERE uuid=? AND requestId=?', (uuid, request_id))
         self.conn.commit()
 
     # Add a concurrent request

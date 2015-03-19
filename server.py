@@ -65,22 +65,27 @@ def read_file():
     metadata = getattr(g, 'metadata', None)
     filename = request.args.get('uuid')
     if app.config['use_dist_replication']:
-        concurrent_requests = metadata.add_concurrent_request(file_uuid)
+        metadata.add_concurrent_request(filename, ip_address)
+        concurrent_requests = metadata.get_concurrent_request(filename)
         if concurrent_requests is not None:
             # Make sure that the number of concurrent requests is under k.
             # If not, replicate to another server.
             if int(concurrent_requests) >= app.config['k']:
                 # 1) Find the closest server.
                 target_server = metadata.get_closest_server()
-                # 2) Copy the file to that server.
-                clone_file(request.args.get('uuid'), target_server, 'DISTRIBUTED_REPLICATE', ip_address)
+                # 2) Check if there is enough space on the remote server.
+                url = 'http://%s/can_move_file?%s' % (target_server, urllib.urlencode({ 'uuid': filename }))
+                response = requests.get(url)
+                if response.status_code == 200:
+                    # 3) Copy the file to that server.
+                    clone_file(request.args.get('uuid'), target_server, 'DISTRIBUTED_REPLICATE', ip_address)
         else:
             raise Exception('Something fishy is going on... Should have at least one request')
 
         # remove the number of concurrent requests to the file
         @after_this_request
         def remove_request(response):
-            metadata.remove_concurrent_request(file_uuid)
+            metadata.remove_concurrent_request(filename, ip_address)
 
     file_path = UPLOAD_FOLDER + '/' + secure_filename(filename)
     if (metadata.is_file_exist_locally(filename, app.config['HOST']) is not None):
@@ -245,7 +250,6 @@ if __name__ == '__main__':
         hostname = args['host']
     if args['port'] is not None:
         port = args['port']
-
     # Read the file
     with open(SERVER_LIST_FILE, 'rb') as server_file:
         server_list = server_file.readlines()
@@ -264,13 +268,12 @@ if __name__ == '__main__':
     app.config['storage_limit'] = parser.get('generic', 'storage_limit')
     if args['use_dist_replication']:
         app.config['k'] = parser.get('distributed_replication_configuration', 'k')
-
         for server in server_list:
             if server != current_machine:
                 # Compute the distance between this server to the other server.
                 tokenized_server = server.split(':')
-                distance = util.get_distance(hostname, tokenized_server[0])
-                metadata.update_server(server, distance)
+                #distance = util.get_distance(hostname, tokenized_server[0])
+                metadata.update_server(server, 0)
     else:
         metadata.update_servers(server_list)
     metadata.close_connection()
