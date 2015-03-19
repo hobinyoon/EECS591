@@ -1,7 +1,11 @@
 [host_1]
 host=localhost
 deployment_port=5000
+processes=1
 directory=/tmp
+debug=true
+clear_metadata=true
+use_distributed_replication=false
 ;username=[username]
 ;password=[password]
 ;private_key_filename=~/.ssh/id_rsa
@@ -9,7 +13,11 @@ directory=/tmp
 [host_2]
 host=localhost
 deployment_port=5001
+processes=1
 directory=/tmp
+debug=true
+clear_metadata=true
+use_distributed_replication=false
 ;username=[username]
 ;password=[password]
 ;private_key_filename=~/.ssh/id_rsa
