@@ -4,6 +4,7 @@ import socket
 import sys
 import os
 import os.path
+import time
 import urllib
 import uuid
 
@@ -63,6 +64,7 @@ def write_file():
 def read_file():
     ip_address = request.remote_addr if request.args.get('ip') is None else request.args.get('ip')
     metadata = getattr(g, 'metadata', None)
+    delay_time = 0 if request.args.get('delay') is None else int(request.args.get('delay'))
     filename = request.args.get('uuid')
     if app.config['use_dist_replication']:
         metadata.add_concurrent_request(filename, ip_address)
@@ -90,6 +92,7 @@ def read_file():
     file_path = UPLOAD_FOLDER + '/' + secure_filename(filename)
     if (metadata.is_file_exist_locally(filename, app.config['HOST']) is not None):
         logger.log(filename, ip_address, app.config['HOST'], 'READ', 200, os.path.getsize(file_path))
+        time.sleep(delay_time)
         return send_from_directory(UPLOAD_FOLDER, secure_filename(filename))
 
     redirect_address = metadata.lookup_file(filename, app.config['HOST'])
@@ -231,6 +234,8 @@ if __name__ == '__main__':
     # Default values
     hostname = '0.0.0.0'
     port = '5000'
+    processes = 1
+    start_with_debug = False
     server_list = []
 
     # Argument parsing
@@ -238,6 +243,8 @@ if __name__ == '__main__':
     parser.add_argument('serverlist', help='the file containing the host of other servers')
     parser.add_argument('--host', help='the host for the server')
     parser.add_argument('--port', help='the port for deployment')
+    parser.add_argument('--processes', help='specify the number of processes to start the server with')
+    parser.add_argument('--with-debug', action='store_true', help='starts the server with debug mode')
     parser.add_argument('--use-dist-replication', action='store_true', help='enables the distributed replication')
     parser.add_argument('--clear-metadata', action='store_true', help='the server should clear the metadata upon starting')
 
@@ -250,6 +257,11 @@ if __name__ == '__main__':
         hostname = args['host']
     if args['port'] is not None:
         port = args['port']
+    if args['processes'] is not None:
+        processes = args['processes']
+    if args['with_debug'] is not None:
+        start_with_debug = args['with_debug']
+
     # Read the file
     with open(SERVER_LIST_FILE, 'rb') as server_file:
         server_list = server_file.readlines()
@@ -260,7 +272,6 @@ if __name__ == '__main__':
     if args['clear_metadata'] is not None and args['clear_metadata']:
         print('Clearing metadata...')
         metadata.clear_metadata() # shouldn't do this!
-
 
     # Read configuration file
     parser = SafeConfigParser()
@@ -280,4 +291,5 @@ if __name__ == '__main__':
 
     # Start Flask
     app.config['HOST'] = current_machine # todo: not sure if this is correct.
-    app.run(host='0.0.0.0', port=int(port), debug=True)
+    print ('Starting server on ' + current_machine + ' with ' + str(processes) + ' processes and debug turned on: ' + str(start_with_debug))
+    app.run(host='0.0.0.0', port=int(port), processes=int(processes), debug=start_with_debug)
