@@ -9,6 +9,8 @@ from geopy.distance import great_circle
 
 import ip_location_cache
 
+# This function may be replaced by cached version calculate distance
+# The distance returned is in kilometers.
 def get_distance(ip_addr1, ip_addr2):
     ip_cache = ip_location_cache.ip_location_cache()
     location1 = ip_cache.get_lat_lon_from_ip(ip_addr1)
