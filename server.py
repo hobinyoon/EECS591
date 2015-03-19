@@ -7,6 +7,8 @@ import os.path
 import urllib
 import uuid
 
+from ConfigParser import SafeConfigParser
+
 # Uses Flask for RESTful API
 import requests
 
@@ -22,6 +24,7 @@ import util
 UPLOAD_FOLDER = 'uploaded/'
 SERVER_LIST_FILE = 'servers.txt'
 LOG_DIRECTORY = 'logs'
+SERVER_CONFIG_FILE = 'server.cnf'
 
 # Setup for the app
 app = Flask(__name__)
@@ -61,6 +64,29 @@ def read_file():
     ip_address = request.remote_addr if request.args.get('ip') is None else request.args.get('ip')
     metadata = getattr(g, 'metadata', None)
     filename = request.args.get('uuid')
+    if app.config['use_dist_replication']:
+        metadata.add_concurrent_request(filename, ip_address)
+        concurrent_requests = metadata.get_concurrent_request(filename)
+        if concurrent_requests is not None:
+            # Make sure that the number of concurrent requests is under k.
+            # If not, replicate to another server.
+            if int(concurrent_requests) >= app.config['k']:
+                # 1) Find the closest server.
+                target_server = metadata.get_closest_server()
+                # 2) Check if there is enough space on the remote server.
+                url = 'http://%s/can_move_file?%s' % (target_server, urllib.urlencode({ 'uuid': filename }))
+                response = requests.get(url)
+                if response.status_code == 200:
+                    # 3) Copy the file to that server.
+                    clone_file(request.args.get('uuid'), target_server, 'DISTRIBUTED_REPLICATE', ip_address)
+        else:
+            raise Exception('Something fishy is going on... Should have at least one request')
+
+        # remove the number of concurrent requests to the file
+        @after_this_request
+        def remove_request(response):
+            metadata.remove_concurrent_request(filename, ip_address)
+
     file_path = UPLOAD_FOLDER + '/' + secure_filename(filename)
     if (metadata.is_file_exist_locally(filename, app.config['HOST']) is not None):
         logger.log(filename, ip_address, app.config['HOST'], 'READ', 200, os.path.getsize(file_path))
@@ -97,13 +123,11 @@ def file_exists():
         return 'File not found', 404
 
 # Helper method for sending a file to another server
-def move_file(request, method, ip_address):
+def clone_file(file_uuid, destination, method, ip_address):
     metadata = getattr(g, 'metadata', None)
-    file_uuid = request.args.get('uuid')
     file_path = UPLOADED_FOLDER + '/' + file_uuid
     if not os.path.exists(file_path):
         return make_response('File not found', 404)
-    destination = request.args.get('destination')
     destination_with_endpoint = destination + '/write'
     files = {'file': open(file_path, 'rb')}
     write_request = requests.post(url, files)
@@ -117,7 +141,7 @@ def move_file(request, method, ip_address):
 def transfer():
     ip_address = request.remote_addr if request.args.get('ip') is None else request.args.get('ip')
     metadata = getattr(g, 'metadata', None)
-    write_request = move_file(request, 'TRANSFER', ip_address)
+    write_request = clone_file(request.args.get('uuid'), request.args.get('destination'), 'TRANSFER', ip_address)
     if write_request.status_code == 201:
         os.remove(os.path.join(app.config['UPLOAD_FOLDER'], file_uuid))
         metadata.delete_file_stored(request.args.get('uuid'), app.config['HOST'])
@@ -127,7 +151,7 @@ def transfer():
 @app.route('/replicate', methods=['PUT'])
 def replicate():
     ip_address = request.remote_addr if request.args.get('ip') is None else request.args.get('ip')
-    write_request = move_file(request, 'REPLICATE', ip_address)
+    write_request = clone_file(request.args.get('uuid'), request.args.get('destination'), 'REPLICATE', ip_address)
     return write_request
 
 # Deletes the file. This API call should not be open to all users.
@@ -154,6 +178,18 @@ def logs():
         file_name = list_of_files[0]
     return send_from_directory(LOG_DIRECTORY, secure_filename(file_name))
 
+@app.route('/can_move_file', methods=['GET'])
+def can_move_file():
+    file_size = float(request.args.get('file_size'))
+    storage_limit = app.config['storage_limit']
+    current_storage = sum(os.path.getsize(f) for f in os.listdir(UPLOAD_FOLDER) if os.path.isfile(f))
+    space_left = int(storage_limit) - current_storage
+    response_message = space_left
+    if file_size < space_left:
+        return str(response_message), 200
+    else:
+        return str(response_message), 413
+
 # Shuts down the server
 @app.route('/shutdown', methods=['GET'])
 def shutdown():
@@ -162,10 +198,6 @@ def shutdown():
         raise RuntimeError('Not running with the Werkzeug Server')
     func()
     return 'Server is shutting down...', 200
-
-@app.route('/earliestDate', methods=['GET'])
-def get_earliest_date():
-    return
 
 # Connect to the metadata database
 @app.before_request
@@ -179,6 +211,21 @@ def teardown_request(exception):
     if metadata is not None:
         metadata.close_connection()
 
+# Setup the callback method.
+@app.after_request
+def call_after_request_callbacks(response):
+    if hasattr(g, 'after_request_callbacks'):
+        for callback in getattr(g, 'after_request_callbacks'):
+            callback(response)
+    return response
+
+# Helper method for executing function after the request is done.
+def after_this_request(f):
+    if not hasattr(g, 'after_request_callbacks'):
+        g.after_request_callbacks = []
+    g.after_request_callbacks.append(f)
+    return f
+
 # Entry point for the app
 if __name__ == '__main__':
     # Default values
@@ -186,30 +233,51 @@ if __name__ == '__main__':
     port = '5000'
     server_list = []
 
+    # Argument parsing
     parser = argparse.ArgumentParser()
     parser.add_argument('serverlist', help='the file containing the host of other servers')
     parser.add_argument('--host', help='the host for the server')
     parser.add_argument('--port', help='the port for deployment')
+    parser.add_argument('--use-dist-replication', action='store_true', help='enables the distributed replication')
+    parser.add_argument('--clear-metadata', action='store_true', help='the server should clear the metadata upon starting')
 
     args = vars(parser.parse_args())
     server_list_file = args['serverlist']
+    app.config['use_dist_replication'] = args['use_dist_replication']
 
     # Populate when there are arguments
     if args['host'] is not None:
         hostname = args['host']
     if args['port'] is not None:
         port = args['port']
-
     # Read the file
     with open(SERVER_LIST_FILE, 'rb') as server_file:
         server_list = server_file.readlines()
 
     # Update the metadata
     metadata = metadata_manager.MetadataManager()
-    metadata.clear_metadata()
-    metadata.update_servers(server_list)
+    current_machine = hostname + ':' + port
+    if args['clear_metadata'] is not None and args['clear_metadata']:
+        print('Clearing metadata...')
+        metadata.clear_metadata() # shouldn't do this!
+
+
+    # Read configuration file
+    parser = SafeConfigParser()
+    parser.read(SERVER_CONFIG_FILE)
+    app.config['storage_limit'] = parser.get('generic', 'storage_limit')
+    if args['use_dist_replication']:
+        app.config['k'] = parser.get('distributed_replication_configuration', 'k')
+        for server in server_list:
+            if server != current_machine:
+                # Compute the distance between this server to the other server.
+                tokenized_server = server.split(':')
+                #distance = util.get_distance(hostname, tokenized_server[0])
+                metadata.update_server(server, 0)
+    else:
+        metadata.update_servers(server_list)
     metadata.close_connection()
 
     # Start Flask
-    app.config['HOST'] = hostname + ':' + port # todo: not sure if this is correct.
+    app.config['HOST'] = current_machine # todo: not sure if this is correct.
     app.run(host='0.0.0.0', port=int(port), debug=True)
