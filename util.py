@@ -2,6 +2,7 @@
 import geopy
 import pyipinfodb
 import requests
+from cache.ip_location_cache import ip_location_cache
 
 from geopy.distance import great_circle
 
@@ -11,6 +12,12 @@ def get_distance(location1, location2):
     pt2 = geopy.Point(location2[0], location2[1])
     dist = great_circle(pt1, pt2).km
     return dist
+
+def get_distance_from_ip(ip_addr1, ip_addr2):
+  ip_cache = ip_location_cache()
+  location1 = ip_cache.get_lat_lon_from_ip(ip_addr1)
+  location2 = ip_cache.get_lat_lon_from_ip(ip_addr2)
+  return get_distance(location1, location2)
 
 # get server logs during the experiment
 def get_server_logs(start_time, end_time):
