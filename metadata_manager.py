@@ -58,8 +58,35 @@ class MetadataManager:
 
     # Clear all metadata from the database.
     def clear_metadata(self):
-        self.cursor.execute('DELETE FROM Server WHERE 1=1')
-        self.cursor.execute('DELETE FROM FileMap WHERE 1=1')
+        self.cursor.execute('DELETE FROM KnownServer')
+        self.cursor.execute('DELETE FROM FileMap')
+        self.cursor.execute('DELETE FROM Connections')
+        self.conn.commit()
+
+    # Returns the number of concurrent requests for the specified uuid.
+    def get_concurrent_request(self, uuid):
+        self.cursor.execute('SELECT count(*) FROM Connections WHERE uuid=?', (uuid,))
+        result = self.cursor.fetchone()
+        return result[0]
+
+    # Removes a concurrent request of a uuid from the server.
+    def remove_concurrent_request(self, uuid, request_id):
+        self.cursor.execute('DELETE FROM Connections WHERE uuid=? AND requestId=?', (uuid, request_id))
+        self.conn.commit()
+
+    # Add a concurrent request
+    def add_concurrent_request(self, uuid, request_id):
+        self.cursor.execute('INSERT INTO Connections VALUES (?, ?)', (uuid, request_id))
+        self.conn.commit()
+
+    # Returns the closest server to our server.
+    def find_closest_server(self):
+        self.cursor.execute('SELECT ks1.server FROM KnownServer ks1 WHERE ks1.distance=(SELECT MIN(distance) FROM KnownServer ks2)')
+        return self.cursor.fetchone()
+
+    # Adds the server into the metadata database.
+    def update_server(self, server, distance):
+        self.cursor.execute('INSERT INTO KnownServer VALUES (?, ?)', (server.strip(), distance))
         self.conn.commit()
 
     # Adds the server into the metadata database
@@ -67,9 +94,8 @@ class MetadataManager:
     # params:
     #   server: the server known to this server that it is online
     def update_servers(self, servers):
-        self.cursor.execute('DELETE FROM Server WHERE 1=1')
         for server in servers:
-            self.cursor.execute('INSERT INTO Server VALUES (?)', (server.strip(),))
+            self.cursor.execute('INSERT INTO KnownServer VALUES (?, ?)', (server.strip(), -1))
             self.conn.commit()
 
     # Closes the connection to the database
