@@ -63,7 +63,6 @@ def replay_log(log_file, request_to_file_uuid):
   for line in fd:
     request_source_info, request_content, reply = line.split('"')
     request_source_ip = request_source_info.split()[0]
-    print request_source_ip
     file_uuid = request_to_file_uuid[request_content]
     succeed = read_file(file_uuid, request_source_ip)
     if not succeed:
