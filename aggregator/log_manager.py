@@ -53,5 +53,5 @@ class LogManager:
     return self.cursor.fetchall()
 
   # Closes the connection to the database
-  def close_connection(self):
+  def __del__(self):
       self.conn.close()

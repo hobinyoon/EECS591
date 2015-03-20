@@ -104,11 +104,3 @@ class GreedyReplication:
       if request_sum > replica_sum:
         return False
     return true
-
-
-
-
-
-
-
-
