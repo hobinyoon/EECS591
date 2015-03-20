@@ -1,6 +1,7 @@
 # Python interface for managing aggregated logs
 
 import sqlite3
+import time
 
 class LogManager:
 
@@ -47,7 +48,7 @@ class LogManager:
   #   end_timestamp: returned logs end by this integer timestamp
   def get_log_entries(self, start_timestamp = 0, end_timestamp = None):
     if end_timestamp is None:
-      end_timestamp = int(time.now())
+      end_timestamp = int(time.time())
 
     self.cursor.execute('SELECT * FROM Log WHERE timestamp >= ? AND timestamp <= ?', (start_timestamp, end_timestamp))
     return self.cursor.fetchall()
