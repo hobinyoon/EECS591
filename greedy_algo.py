@@ -54,6 +54,7 @@ class GreedyReplication:
         self.replica_map[uuid][source] = 0
       elif req_type == 'TRANSFER' or req_type == 'DELETE':
         self.replica_map[uuid][source] = 0
+    self.last_timestamp = current_timestamp
 
   def run_replication(self):
     self.update()
