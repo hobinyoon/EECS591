@@ -109,7 +109,8 @@ class GreedyReplication:
           best_c = c
           best_s = s
     if max_satisfied_num > 0:
-      util.replicate(best_c, best_s)
+      source = replica_map[best_c].itervalues().next()
+      util.replicate(best_c, source, best_s)
 
   def enough_replica(self):
     # this is an approximate implementation, may need to
