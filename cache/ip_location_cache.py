@@ -48,3 +48,7 @@ class ip_location_cache:
             return self.find_and_add_entry(ip)
         else:
             return result
+    # Close database connection
+    def __del__(self):
+        self.conn.close()
+
