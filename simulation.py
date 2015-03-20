@@ -2,6 +2,7 @@
 
 import replay_log
 import util
+from cache.ip_location_cache import ip_location_cache
 
 SOURCE_INDEX =  2
 DESTINATION_INDEX = 3
@@ -14,10 +15,11 @@ def run_simulation(request_log_file):
   # calculate the average latency
   latency_sum = 0
   request_count = 0
+  ip_cache = ip_location_cache()
   for log in logs:
-    client_ip = log[SOURCE_INDEX]
-    server_ip = log[DESTINATION_INDEX]
-    distance = util.get_distance(client_ip, server_ip)
+    client_loc = ip_cache.get_lat_lon_from_ip(log[SOURCE_INDEX])
+    server_loc = ip_cache.get_lat_lon_from_ip(log[DESTINATION_INDEX])
+    distance = util.get_distance(client_loc, server_loc)
     unit = 1000.0
     latency = distance / unit
     request_importance = 1

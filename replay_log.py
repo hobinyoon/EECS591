@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import os
+from datetime import datetime
 import requests
 import urllib
 
@@ -21,8 +22,11 @@ def write_file(filename):
   file_uuid = r.text
   return file_uuid
 
-def read_file(file_uuid):
-  read_url = 'http://%s/read?%s' % (SERVER_HOST, urllib.urlencode({'uuid': file_uuid}))
+def read_file(file_uuid, source_ip = None):
+  if source_ip is None:
+    read_url = 'http://%s/read?%s' % (SERVER_HOST, urllib.urlencode({'uuid': file_uuid}))
+  else:
+    read_url = 'http://%s/read?%s' % (SERVER_HOST, urllib.urlencode({'uuid': file_uuid, 'ip': source_ip}))
   # may need get latency number
   r = requests.get(read_url, stream=True)
   if (r.status_code == requests.codes.ok):
@@ -57,9 +61,10 @@ def populate_server_with_log(log_file):
 def replay_log(log_file, request_to_file_uuid):
   fd = open(log_file, 'r')
   for line in fd:
-    request_source, request_content, reply = line.split('"')
+    request_source_info, request_content, reply = line.split('"')
+    request_source_ip = request_source_info.split()[0]
     file_uuid = request_to_file_uuid[request_content]
-    succeed = read_file(file_uuid)
+    succeed = read_file(file_uuid, request_source_ip)
     if not succeed:
       raise ValueError('request failed with file uuid: ', file_uuid)
 
