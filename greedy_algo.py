@@ -1,20 +1,38 @@
+# This file implement simplified greedy replication algorithm.
+
 import util
 import metadata_manager
 
-class GreedyReplication:
-  
-  def __init__(self):
-    pass
+# Project imports
+import aggregator.aggregator
 
-  # update access_info and replication status
-  def refresh():
-    metadata = MetadataManager()
-    client_list = metadata.get_client_list() # [client_ip, ]
-    server_list = metadata.get_server_list() # [server_ip, ]
-    content_list = metadata.get_file_list() # [uuid, ]
-    
-    access_map = metadata.get_access_map() # {uuid: {client_ip: num_request}}
-    replica_map = metadata.get_replica_map() # {uuid: {server_ip: num_replica}}
+class GreedyReplication:
+
+  def __init__(self):
+    self.client_list = [] # [client_ip, ]
+    self.server_list = [] # [server_ip, ]
+    self.content_list = [] # [uuid, ]
+    self.access_map = {} # {uuid: {client_ip: num_request}}
+    self.replica_map = {} # {uuid: {server_ip: num_replica}}
+    self.last_timestamp = 0 # the timestamp of last update
+    # TODO: init aggregator
+    # self.aggregator
+
+  # update client_list, server_list, content_list, access_info
+  # and replication status
+  def update():
+    logs = self.aggregator.get_log_entries()
+    complete_file_set = Set([])
+    replica_map = {}
+    server_list = retrieve_server_list()
+    for server in server_list:
+      file_list = get_file_list_from_server(server)
+      for uuid in file_list:
+        file_list.add(uuid)
+        if uuid not in replica_map:
+          replica_map[uuid] = {}
+        replica_map[uuid][server] = 1
+    return list(complete_file_set), replica_map
 
   def run_replication():
     refresh()

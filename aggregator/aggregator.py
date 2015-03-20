@@ -77,18 +77,18 @@ def update_aggregated_logs(start_timestamp = None):
 
   print 'Updated all logs successfully!'
 
-def get_file_list_and_file_to_server_map:
-  complete_file_set = Set([])
-  replica_map = {}
-  server_list = retrieve_server_list()
-  for server in server_list:
-    file_list = get_file_list_from_server(server)
-    for uuid in file_list:
-      file_list.add(uuid)
-      if uuid not in replica_map:
-        replica_map[uuid] = {}
-      replica_map[uuid][server] = 1
-  return list(complete_file_set), replica_map
+# Retrive log entries in a specified time period
+#
+# params:
+#   start_timestamp: returned logs start from this integer timestamp
+#   end_timestamp: returned logs end by this integer timestamp
+# return val:
+#   a tuple: (list, dict of dict)
+def get_log_entries(start_timestamp = None, end_timestamp = None):
+  # to get latest logs, update first
+  update_aggregated_logs('update')
+  return log_mgr.get_log_entries(start_timestamp, end_timestamp)
+
 
 if __name__ == '__main__':
   # Parse arguments for app
