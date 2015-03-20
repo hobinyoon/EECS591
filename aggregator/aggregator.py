@@ -4,22 +4,21 @@
 import argparse
 import requests
 import datetime
+import os
+import sys
 import time
 import urllib
 
 # Project imports
+sys.path.insert(0, os.path.normpath('..'))
 import log_manager
+import util
 
 # Constants
 SECONDS_PER_DAY = 86400
-SERVER_LIST_FILE = '../servers.txt'
 
 # Globals
 log_mgr = log_manager.LogManager()
-
-def retrieve_server_list():
-  with open(SERVER_LIST_FILE, 'rb') as server_file:
-    return server_file.read().splitlines() 
 
 def date_to_timestamp(date):
   return int(time.mktime(datetime.datetime.strptime(date, "%Y-%m-%d").timetuple()))
@@ -70,7 +69,7 @@ def update_log_from_server(server, start_timestamp):
     current_timestamp = current_timestamp + SECONDS_PER_DAY
 
 def update_aggregated_logs(start_timestamp = None):
-  server_list = retrieve_server_list()
+  server_list = util.retrieve_server_list()
   
   for server in server_list:
     update_log_from_server(server, start_timestamp)
