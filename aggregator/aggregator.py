@@ -91,7 +91,7 @@ class Aggregator:
   # return val:
   #   a tuple: (list, dict of dict)
   def get_log_entries(self, start_timestamp = None, end_timestamp = None):
-    # to get latest logs, first update
+    # to get latest logs, update first
     self.update_aggregated_logs('update')
     return self.log_mgr.get_log_entries(start_timestamp, end_timestamp)
 

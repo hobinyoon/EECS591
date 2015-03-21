@@ -5,8 +5,11 @@ import requests
 import urllib
 import sys
 sys.path.insert(0, 'cache')
+sys.path.insert(0, 'aggregator')
 
+# Project imports
 from ip_location_cache import ip_location_cache
+from aggregator import Aggregator
 
 from geopy.distance import great_circle
 
@@ -46,12 +49,8 @@ def retrieve_server_list():
 
 # get server logs during the experiment
 def get_server_logs(start_time, end_time):
-    # retrive server logs from database(TODO)
-    # this is just for testing
-    sample_log = []
-    for i in range(10):
-        sample_log.append([ '', '', '119.63.196.102', '8.8.8.8', '', '', '', ''])
-    return sample_log
+  aggregator = Aggregator()
+  return aggregator.get_log_entries(start_time, end_time)
 
 # Construct a put request which involves a url and a uuid of the file
 def construct_put_request(url, uuid):
