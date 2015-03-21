@@ -2,7 +2,11 @@
 import geopy
 import os
 import requests
+import urllib
 import sys
+sys.path.insert(0, 'cache')
+
+from ip_location_cache import ip_location_cache
 
 from geopy.distance import great_circle
 
@@ -16,6 +20,15 @@ def get_distance(location1, location2):
     pt2 = geopy.Point(location2[0], location2[1])
     dist = great_circle(pt1, pt2).km
     return dist
+
+def replicate(file_uuid, source_ip, dest_ip):
+  print 'Replicate file ' + file_uuid + ' from ' + source_ip + ' to ' + dest_ip
+  url = 'http://%s/replicate?%s' % (source_ip, urllib.urlencode({'ip': dest_ip}))
+  r = requests.put(url)
+  if r.status_code == requests.codes.ok:
+    print "\t succeed!"
+  else:
+    print "\t fail!"
 
 # get distance between two ip addresses
 def get_distance_from_ip(ip_addr1, ip_addr2):

@@ -4,6 +4,8 @@
 # Project Specific
 metadata.db
 servers.txt
+ip_location_cache.db
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -65,3 +67,4 @@ uploaded/
 venv/
 aggregator/*.db
 client_download/
+
