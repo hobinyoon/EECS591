@@ -131,10 +131,9 @@ class Volley:
   # params:
   #   server: hostname of server to check
   def total_server_capacity(self, server):
-    url = 'http://%s/can_move_file?%s' % (server, urllib.urlencode({ 'file_size': 0 }))
+    url = 'http://%s/capacity?%s' % (server, urllib.urlencode({ 'file_size': 0 }))
     r = requests.get(url, timeout=5)
     return float(r.text)
-    # return 13000
 
   # Check capacity and redistribute data to each server
   #
