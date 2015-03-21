@@ -1,8 +1,7 @@
 # Utility class
 import geopy
-import pyipinfodb
+import os
 import requests
-<<<<<<< HEAD
 import urllib
 import sys
 sys.path.insert(0, 'cache')
@@ -10,6 +9,10 @@ sys.path.insert(0, 'cache')
 from ip_location_cache import ip_location_cache
 
 from geopy.distance import great_circle
+
+# Project imports
+sys.path.insert(0, os.path.join(os.path.realpath(__file__), 'cache'))
+from ip_location_cache import ip_location_cache
 
 # get distance between two (lat,log) pairs
 def get_distance(location1, location2):

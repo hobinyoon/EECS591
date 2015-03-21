@@ -4,16 +4,19 @@
 import argparse
 import requests
 import datetime
+import os
+import sys
 import time
 import urllib
 
 # Project imports
+sys.path.insert(0, os.path.normpath('..'))
 import log_manager
+import util
 
 class Aggregator:
   # Constants
   SECONDS_PER_DAY = 86400
-  SERVER_LIST_FILE = '../servers.txt'
 
   def __init__(self):
     self.log_mgr = log_manager.LogManager()
@@ -23,10 +26,6 @@ class Aggregator:
 
   def timestamp_to_date(self, timestamp):
     return datetime.datetime.utcfromtimestamp(timestamp).strftime('%Y-%m-%d')
-
-  def retrieve_server_list(self):
-    with open(self.SERVER_LIST_FILE, 'rb') as server_file:
-      return server_file.read().splitlines() 
 
   def request_log_from_server(self, server, date = None):
     if date is None:
@@ -77,7 +76,7 @@ class Aggregator:
       current_timestamp = current_timestamp + self.SECONDS_PER_DAY
 
   def update_aggregated_logs(self, start_timestamp = None):
-    server_list = self.retrieve_server_list()
+    server_list = util.retrieve_server_list()
     
     for server in server_list:
       self.update_log_from_server(server, start_timestamp)

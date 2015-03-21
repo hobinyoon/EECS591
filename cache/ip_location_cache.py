@@ -5,11 +5,12 @@ import sqlite3
 
 # Config
 CACHE_INITIALIZATION = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'cache.sql')
+IP_LOCATION_CACHE = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'ip_location_cache.db')
 
 class ip_location_cache:
 
     def __init__(self):
-        self.conn = sqlite3.connect('ip_location_cache.db')
+        self.conn = sqlite3.connect(IP_LOCATION_CACHE)
         with open(CACHE_INITIALIZATION, 'rb') as initialization_file:
             self.conn.executescript(initialization_file.read())
         self.cursor = self.conn.cursor()
