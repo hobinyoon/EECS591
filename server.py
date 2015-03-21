@@ -193,6 +193,10 @@ def can_move_file():
     else:
         return str(response_message), 413
 
+@app.route('/capacity', methods=['GET'])
+def capacity():
+    return str(app.config['storage_limit']), 200
+
 # Shuts down the server
 @app.route('/shutdown', methods=['GET'])
 def shutdown():
