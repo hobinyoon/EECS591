@@ -2,12 +2,15 @@
 
 import sqlite3
 import time
+import os
 
 class LogManager:
 
   def __init__(self):
     self.conn = sqlite3.connect('aggregated_logs.db')
-    with open('aggregator.sql', 'rb') as initialization_file:
+    sql_file = os.path.join(os.path.dirname(__file__), 'aggregator.sql')
+    print sql_file
+    with open(sql_file, 'rb') as initialization_file:
       self.conn.executescript(initialization_file.read())
     self.cursor = self.conn.cursor()
 
