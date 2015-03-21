@@ -7,8 +7,11 @@ import sys
 from geopy.distance import great_circle
 
 # Project imports
-sys.path.insert(0, os.path.join(os.path.realpath(__file__), 'cache'))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), 'cache'))
 from ip_location_cache import ip_location_cache
+
+# Config
+SERVER_LIST_FILE = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'servers.txt')
 
 # get distance between two (lat,log) pairs
 def get_distance(location1, location2):
@@ -23,6 +26,10 @@ def get_distance_from_ip(ip_addr1, ip_addr2):
     location1 = ip_cache.get_lat_lon_from_ip(ip_addr1)
     location2 = ip_cache.get_lat_lon_from_ip(ip_addr2)
     return get_distance(location1, location2)
+
+def retrieve_server_list():
+    with open(SERVER_LIST_FILE, 'rb') as server_file:
+        return server_file.read().splitlines() 
 
 # get server logs during the experiment
 def get_server_logs(start_time, end_time):
