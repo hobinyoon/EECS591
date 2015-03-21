@@ -7,9 +7,9 @@ import os
 class LogManager:
 
   def __init__(self):
-    self.conn = sqlite3.connect('aggregated_logs.db')
+    db_file = os.path.join(os.path.dirname(__file__), 'aggregated_logs.db')
+    self.conn = sqlite3.connect(db_file)
     sql_file = os.path.join(os.path.dirname(__file__), 'aggregator.sql')
-    print sql_file
     with open(sql_file, 'rb') as initialization_file:
       self.conn.executescript(initialization_file.read())
     self.cursor = self.conn.cursor()
@@ -53,7 +53,7 @@ class LogManager:
     if end_timestamp is None:
       end_timestamp = int(time.time())
 
-    self.cursor.execute('SELECT * FROM Log WHERE timestamp >= ? AND timestamp <= ?', (start_timestamp, end_timestamp))
+    self.cursor.execute('SELECT * FROM Log WHERE timestamp >= ? AND timestamp <= ?', (start_timestamp, int(end_timestamp)))
     return self.cursor.fetchall()
 
   # Closes the connection to the database
