@@ -132,8 +132,9 @@ class Volley:
   #   server: hostname of server to check
   def total_server_capacity(self, server):
     url = 'http://%s/can_move_file?%s' % (server, urllib.urlencode({ 'file_size': 0 }))
-    r = requests.get(url)
+    r = requests.get(url, timeout=5)
     return float(r.text)
+    # return 13000
 
   # Check capacity and redistribute data to each server
   #
@@ -277,16 +278,16 @@ class Volley:
     
     length = len(weights)
 
-    print '------ Weighted spherical mean -------- '
-    print 'Length: ' + str(length)
-    print 'WEIGHTS: ' + str(weights)
-    print 'LOCATIONS: ' + str(locations)
+    # print '------ Weighted spherical mean -------- '
+    # print 'Length: ' + str(length)
+    # print 'WEIGHTS: ' + str(weights)
+    # print 'LOCATIONS: ' + str(locations)
 
     current_weight = float(weights.pop())
     weight = current_weight / total_weight
     location = locations.pop()
 
-    print 'current_weight: ' + str(weight)
+    # print 'current_weight: ' + str(weight)
 
     if length == 1:
       return location
