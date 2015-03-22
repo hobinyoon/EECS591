@@ -53,7 +53,19 @@ class MetadataManager:
         results = self.cursor.fetchall()
         retval = []
         for result in results:
-            retval.append(result[0])
+            retval.append(result)
+        return retval
+
+    # Returns a list of the servers without the port that the server knows about excluding itself
+    #
+    # params:
+    #   local: the local address
+    def get_all_server_without_port(self, local):
+        self.cursor.execute('SELECT DISTINCT * FROM Server WHERE server<>?', (local,))
+        results = self.cursor.fetchall()
+        retval = []
+        for result in results:
+            retval.append(result.split(':')[0])
         return retval
 
     # Clear all metadata from the database.
@@ -68,6 +80,11 @@ class MetadataManager:
         self.cursor.execute('SELECT count(*) FROM Connections WHERE uuid=?', (uuid,))
         result = self.cursor.fetchone()
         return result[0]
+
+    # returns a list containing the concurrent connections to the file, uuid
+    def get_concurrent_connections(self, uuid):
+        self.cursor.execute('SELECT request_id FROM Connections WHERE uuid=?', (uuid,))
+        return self.cursor.fetchall()
 
     # Removes a concurrent request of a uuid from the server.
     def remove_concurrent_request(self, uuid, request_id):
