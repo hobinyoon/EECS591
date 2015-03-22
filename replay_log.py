@@ -11,6 +11,9 @@ CLIENT_UPLOAD_FOLDER = 'client_upload/'
 CLIENT_DOWNLOAD_FOLDER = 'client_download/'
 SERVER_HOST = 'localhost:5000'
 
+DELAY_FACTOR = 5000   # Factor to divide filesize by to get delay time
+MAX_DELAY = 0.5       # Maximum delay time for concurrent requests
+
 def write_file(filename):
   write_url = 'http://%s/write' % (SERVER_HOST)
   if not os.path.exists(filename):
@@ -25,7 +28,7 @@ def write_file(filename):
   return file_uuid
 
 def read_file(file_uuid, source_ip = None, delay = None):
-  print 'running read file on source_ip: ' + source_ip + ' with delay: ' + str(delay) + ' for uuid: ' + file_uuid
+  print 'READ: source_ip: ' + source_ip + ', delay: ' + str(delay) + ', uuid: ' + file_uuid
   query_parameters = {'uuid': file_uuid}
   if source_ip is not None:
     query_parameters['ip'] = source_ip
@@ -42,8 +45,11 @@ def read_file(file_uuid, source_ip = None, delay = None):
       for chunk in r.iter_content(chunk_size):
         fd.write(chunk)
       fd.close()
+      print 'DONE: source_ip: ' + source_ip + ', delay: ' + str(delay) + ', uuid: ' + file_uuid
       return True
   # request failed
+  print 'FAIL: source_ip: ' + source_ip + ', delay: ' + str(delay) + ', uuid: ' + file_uuid
+  print '\tSTATUS: ' + str(r.status_code) + ', TEXT: ' + r.text
   return False
 
 def populate_server_with_log(log_file):
@@ -69,28 +75,53 @@ def populate_server_with_log(log_file):
   fd.close()
   return request_to_file_uuid
 
+# helper function to pause until concurrent execution is finished
+def check_concurrent_execution_and_wait(concurrent_processes, concurrent_uuid, uuid):
+  if len(concurrent_processes) > 0 and concurrent_uuid != uuid:
+    print 'Waiting on concurrency of cardinality ' + str(len(concurrent_processes)) + ' on uuid ' + str(concurrent_uuid)
+    for process in concurrent_processes:
+      process.join()
+    concurrent_processes = []
+    concurrent_uuid = None
+  return concurrent_processes, concurrent_uuid
+
 def replay_log(log_file, request_to_file_uuid):
   fd = open(log_file, 'r')
+
+  # pool of processes concurrently running
+  concurrent_processes = []
+  # uuid of file that's concurrently running
+  concurrent_uuid = None
+
   for line in fd:
     request_source, request_content, request_size, concurrent = line.split('\t')
+    concurrent = concurrent.strip() # strip newlines
     print 'request_source: ' + str(request_source)
     print 'request_content: ' + str(request_content)
     print 'request_size: ' + str(request_size)
     print 'concurrent: ' + str(concurrent)
-    file_uuid = request_to_file_uuid[request_content]
+    uuid = request_to_file_uuid[request_content]
 
     # If concurrent, run concurrently with delay
-    if concurrent.strip() == 'C':
-      delay = float(request_size) / 1000
-      # cap delay at 3 seconds
-      if delay > 3:
-        delay = 3
-      # succeed = read_file(file_uuid, request_source, delay)
-      Process(target=read_file, args=(file_uuid, request_source, delay)).start()
+    if concurrent == 'C':
+      concurrent_processes, concurrent_uuid = check_concurrent_execution_and_wait(concurrent_processes, concurrent_uuid, uuid)
+
+      delay = float(request_size) / DELAY_FACTOR
+      
+      if delay > MAX_DELAY:
+        delay = MAX_DELAY
+      
+      # run concurrently        
+      process = Process(target=read_file, args=(uuid, request_source, delay))
+      process.start()
+      concurrent_processes.append(process)
+      concurrent_uuid = uuid
     else:
-      succeed = read_file(file_uuid, request_source)
+      concurrent_processes, concurrent_uuid = check_concurrent_execution_and_wait(concurrent_processes, concurrent_uuid, uuid)
+
+      succeed = read_file(uuid, request_source)
       if not succeed:
-        raise ValueError('request failed with file uuid: ', file_uuid)
+        raise ValueError('request failed with file uuid: ', uuid)
 
 def simulate_requests(request_log_file):
   if not os.path.exists(CLIENT_UPLOAD_FOLDER):
