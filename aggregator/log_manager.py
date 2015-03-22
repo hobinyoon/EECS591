@@ -1,12 +1,16 @@
 # Python interface for managing aggregated logs
 
 import sqlite3
+import time
+import os
 
 class LogManager:
 
   def __init__(self):
-    self.conn = sqlite3.connect('aggregated_logs.db')
-    with open('aggregator.sql', 'rb') as initialization_file:
+    db_file = os.path.join(os.path.dirname(__file__), 'aggregated_logs.db')
+    self.conn = sqlite3.connect(db_file)
+    sql_file = os.path.join(os.path.dirname(__file__), 'aggregator.sql')
+    with open(sql_file, 'rb') as initialization_file:
       self.conn.executescript(initialization_file.read())
     self.cursor = self.conn.cursor()
 
@@ -40,6 +44,18 @@ class LogManager:
       return None
     return result[0]
 
+  # Retrive log entries in a specified time period
+  #
+  # params:
+  #   start_timestamp: returned logs start from this integer timestamp
+  #   end_timestamp: returned logs end by this integer timestamp
+  def get_log_entries(self, start_timestamp = 0, end_timestamp = None):
+    if end_timestamp is None:
+      end_timestamp = int(time.time())
+
+    self.cursor.execute('SELECT * FROM Log WHERE timestamp >= ? AND timestamp <= ?', (start_timestamp, int(end_timestamp)))
+    return self.cursor.fetchall()
+
   # Closes the connection to the database
-  def close_connection(self):
+  def __del__(self):
       self.conn.close()
