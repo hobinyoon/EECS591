@@ -49,11 +49,11 @@ class MetadataManager:
     # params:
     #   local: the local address
     def get_all_server(self, local):
-        self.cursor.execute('SELECT DISTINCT * FROM Server WHERE server<>?', (local,))
+        self.cursor.execute('SELECT DISTINCT * FROM KnownServer WHERE server<>?', (local,))
         results = self.cursor.fetchall()
         retval = []
         for result in results:
-            retval.append(result)
+            retval.append(result[0])
         return retval
 
     # Returns a list of the servers without the port that the server knows about excluding itself
@@ -61,11 +61,11 @@ class MetadataManager:
     # params:
     #   local: the local address
     def get_all_server_without_port(self, local):
-        self.cursor.execute('SELECT DISTINCT * FROM Server WHERE server<>?', (local,))
+        self.cursor.execute('SELECT DISTINCT * FROM KnownServer WHERE server<>?', (local,))
         results = self.cursor.fetchall()
         retval = []
         for result in results:
-            retval.append(result.split(':')[0])
+            retval.append(result[0].split(':')[0])
         return retval
 
     # Clear all metadata from the database.
@@ -83,7 +83,7 @@ class MetadataManager:
 
     # returns a list containing the concurrent connections to the file, uuid
     def get_concurrent_connections(self, uuid):
-        self.cursor.execute('SELECT request_id FROM Connections WHERE uuid=?', (uuid,))
+        self.cursor.execute('SELECT requestId FROM Connections WHERE uuid=?', (uuid,))
         return self.cursor.fetchall()
 
     # Removes a concurrent request of a uuid from the server.
@@ -114,7 +114,10 @@ class MetadataManager:
         for server in servers:
             self.cursor.execute('INSERT INTO KnownServer VALUES (?, ?)', (server.strip(), -1))
             self.conn.commit()
-
+    
     # Closes the connection to the database
-    def __del__(self):
+    def close(self):
         self.conn.close()
+
+    def __del__(self):
+        self.close()
