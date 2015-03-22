@@ -8,6 +8,10 @@ import urllib
 CLIENT_UPLOAD_FOLDER = 'client_upload/'
 CLIENT_DOWNLOAD_FOLDER = 'client_download/'
 SERVER_HOST = 'localhost:5000'
+SECONDS_PER_DAY = 86400
+
+def date_to_timestamp(date):
+  return int(time.mktime(datetime.datetime.strptime(date, '%d/%b/%Y:%H:%M:%S').timetuple()))
 
 def write_file(filename):
   write_url = 'http://%s/write' % (SERVER_HOST)
@@ -39,13 +43,12 @@ def read_file(file_uuid, source_ip = None):
   # request failed
   return False
 
-def populate_server_with_log(log_file):
+def populate_server_with_logs(logs):
   write_url = 'http://%s/write' % (SERVER_HOST)
   request_to_file_uuid = {}
-  fd = open(log_file, 'r')
   i = 0
-  for line in fd:
-    request_source, request_content, reply = line.split('"')
+  for log in logs:
+    request_source, request_content, reply = log.split('"')
     if not request_to_file_uuid.has_key(request_content):
       # take request as a file
       files = {'file': ('request' + str(i), request_content)}
@@ -55,30 +58,26 @@ def populate_server_with_log(log_file):
         raise ValueError('post request failed')
       file_uuid = r.text
       request_to_file_uuid[request_content] = file_uuid
-  fd.close()
   return request_to_file_uuid
 
-def replay_log(log_file, request_to_file_uuid):
-  fd = open(log_file, 'r')
-  for line in fd:
+def replay_logs(last_index, time_interval, request_logs, request_to_file_uuid_map):
+  last_date = request_logs[last_index].split('"')[0].split()[0].split('[')[1].split()[0]
+  last_timestamp = date_to_timestamp(last_date)
+  time_limit = last_timestamp + SECONDS_PER_DAY
+  curr_index = last_index
+  for log in logs[last_index+1:]
     request_source_info, request_content, reply = line.split('"')
     request_source_ip = request_source_info.split()[0]
+    datetime = request_source_info.split('[')[1].split('-')[0]
+    timestamp = date_to_timestamp(datetime)
+    if timestamp > time_limit:
+      break
     file_uuid = request_to_file_uuid[request_content]
     succeed = read_file(file_uuid, request_source_ip)
     if not succeed:
       raise ValueError('request failed with file uuid: ', file_uuid)
-
-def simulate_requests(request_log_file):
-  if not os.path.exists(CLIENT_UPLOAD_FOLDER):
-    os.makedirs(CLIENT_UPLOAD_FOLDER)
-  if not os.path.exists(CLIENT_DOWNLOAD_FOLDER):
-    os.makedirs(CLIENT_DOWNLOAD_FOLDER)
-  request_map = populate_server_with_log(request_log_file)
-  start_time = datetime.utcnow()
-  end_time = datetime.utcnow()
-  replay_log(request_log_file, request_map)
-  return (start_time, end_time)
-
-if __name__ == '__main__':
-  simulate_requests('sample_log')
-
+    curr_index += 1
+  if curr_index >= len(request_logs):
+    return None
+  else:
+    return curr_index
