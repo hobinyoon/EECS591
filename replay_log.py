@@ -7,9 +7,11 @@ from multiprocessing import Process
 import requests
 import urllib
 
+import util
+
 CLIENT_UPLOAD_FOLDER = 'client_upload/'
 CLIENT_DOWNLOAD_FOLDER = 'client_download/'
-SERVER_HOST = 'localhost:5000'
+SERVER_LIST = util.retrieve_server_list()
 
 DELAY_FACTOR = 5000   # Factor to divide filesize by to get delay time
 MAX_DELAY = 0.5       # Maximum delay time for concurrent requests
@@ -35,7 +37,8 @@ def read_file(file_uuid, source_ip = None, delay = None):
   if delay is not None:
     query_parameters['delay'] = delay
   
-  read_url = 'http://%s/read?%s' % (SERVER_HOST, urllib.urlencode(query_parameters))
+  # it doesn't matter where you make the request because it will redirect
+  read_url = 'http://%s/read?%s' % (SERVER_LIST[0], urllib.urlencode(query_parameters))
 
   # may need get latency number
   r = requests.get(read_url, stream=True)
@@ -47,13 +50,13 @@ def read_file(file_uuid, source_ip = None, delay = None):
       fd.close()
       print 'DONE: source_ip: ' + source_ip + ', delay: ' + str(delay) + ', uuid: ' + file_uuid
       return True
+
   # request failed
   print 'FAIL: source_ip: ' + source_ip + ', delay: ' + str(delay) + ', uuid: ' + file_uuid
   print '\tSTATUS: ' + str(r.status_code) + ', TEXT: ' + r.text
   return False
 
 def populate_server_with_log(log_file):
-  write_url = 'http://%s/write' % (SERVER_HOST)
   request_to_file_uuid = {}
   fd = open(log_file, 'r')
   i = 0
@@ -63,6 +66,7 @@ def populate_server_with_log(log_file):
       # take request as a file
       files = {'file': ('request' + str(i), request_content)}
       i += 1
+      write_url = 'http://%s/write' % (SERVER_LIST[i % len(SERVER_LIST)])
       r = requests.post(write_url, files = files)
       print write_url
       print files
