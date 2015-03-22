@@ -32,6 +32,10 @@ def get_server_logs(start_time, end_time):
     for i in range(10):
         sample_log.append([ '', '', '119.63.196.102', '8.8.8.8', '', '', '', ''])
     return sample_log
+    
+def retrieve_server_list():
+    with open(SERVER_LIST_FILE, 'rb') as server_file:
+        return server_file.read().splitlines() 
 
 # Construct a put request which involves a url and a uuid of the file
 def construct_put_request(url, uuid):
