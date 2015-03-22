@@ -85,7 +85,7 @@ def check_concurrent_execution_and_wait(concurrent_processes, concurrent_uuid, u
     concurrent_uuid = None
   return concurrent_processes, concurrent_uuid
 
-def replay_log(log_file, request_to_file_uuid):
+def replay_log(log_file, request_to_file_uuid, enable_concurrency = True):
   fd = open(log_file, 'r')
 
   # pool of processes concurrently running
@@ -103,7 +103,7 @@ def replay_log(log_file, request_to_file_uuid):
     uuid = request_to_file_uuid[request_content]
 
     # If concurrent, run concurrently with delay
-    if concurrent == 'C':
+    if enable_concurrency and concurrent == 'C':
       concurrent_processes, concurrent_uuid = check_concurrent_execution_and_wait(concurrent_processes, concurrent_uuid, uuid)
 
       delay = float(request_size) / DELAY_FACTOR
@@ -117,13 +117,14 @@ def replay_log(log_file, request_to_file_uuid):
       concurrent_processes.append(process)
       concurrent_uuid = uuid
     else:
-      concurrent_processes, concurrent_uuid = check_concurrent_execution_and_wait(concurrent_processes, concurrent_uuid, uuid)
+      if enable_concurrency:
+        concurrent_processes, concurrent_uuid = check_concurrent_execution_and_wait(concurrent_processes, concurrent_uuid, uuid)
 
       succeed = read_file(uuid, request_source)
       if not succeed:
         raise ValueError('request failed with file uuid: ', uuid)
 
-def simulate_requests(request_log_file):
+def simulate_requests(request_log_file, enable_concurrency = True):
   if not os.path.exists(CLIENT_UPLOAD_FOLDER):
     os.makedirs(CLIENT_UPLOAD_FOLDER)
   if not os.path.exists(CLIENT_DOWNLOAD_FOLDER):
@@ -131,9 +132,5 @@ def simulate_requests(request_log_file):
   request_map = populate_server_with_log(request_log_file)
   start_time = int(time.time())
   end_time = int(time.time())
-  replay_log(request_log_file, request_map)
+  replay_log(request_log_file, request_map, enable_concurrency)
   return (start_time, end_time)
-
-if __name__ == '__main__':
-  simulate_requests('sample_log_ready')
-
