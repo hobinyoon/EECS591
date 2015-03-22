@@ -97,6 +97,7 @@ def read_file():
         @after_this_request
         def remove_request(response):
             metadata.remove_concurrent_request(filename, ip_address)
+            metadata.close()
 
     file_path = UPLOAD_FOLDER + '/' + secure_filename(filename)
     if (metadata.is_file_exist_locally(filename, app.config['HOST']) is not None):
@@ -137,12 +138,12 @@ def file_exists():
 # Helper method for sending a file to another server
 def clone_file(file_uuid, destination, method, ip_address):
     metadata = getattr(g, 'metadata', None)
-    file_path = UPLOADED_FOLDER + '/' + file_uuid
+    file_path = UPLOAD_FOLDER + '/' + file_uuid
     if not os.path.exists(file_path):
         return make_response('File not found', 404)
-    destination_with_endpoint = destination + '/write'
+    destination_with_endpoint = 'http://' + destination + '/write'
     files = {'file': open(file_path, 'rb')}
-    write_request = requests.post(url, files)
+    write_request = requests.post(destination_with_endpoint, files)
     if (write_request.status_code == 201):
         metadata.update_file_stored(file_uuid, destination)
     logger.log(filename, ip_address, app.config['HOST'], method, write_request.status_code, os.path.getsize(file_path))
