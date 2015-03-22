@@ -220,16 +220,6 @@ def shutdown():
 def before_request():
     g.metadata = metadata_manager.MetadataManager()
 
-<<<<<<< HEAD
-# Close the metadata database connection
-@app.teardown_request
-def teardown_request(exception):
-    metadata = getattr(g, 'metadata', None)
-    # if metadata is not None:
-    #     metadata.close_connection()
-
-=======
->>>>>>> master
 # Setup the callback method.
 @app.after_request
 def call_after_request_callbacks(response):
@@ -303,10 +293,6 @@ if __name__ == '__main__':
                 metadata.update_server(server, 0)
     else:
         metadata.update_servers(server_list)
-<<<<<<< HEAD
-    # metadata.close_connection()
-=======
->>>>>>> master
 
     # Start Flask
     app.config['HOST'] = current_machine # todo: not sure if this is correct.
