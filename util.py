@@ -9,6 +9,7 @@ sys.path.insert(0, 'cache')
 # Project imports
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), 'cache'))
 from ip_location_cache import ip_location_cache
+from geopy.distance import great_circle
 
 # Config
 SERVER_LIST_FILE = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'servers.txt')
