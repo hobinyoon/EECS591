@@ -64,7 +64,7 @@ def write_file():
 def read_file():
     ip_address = request.remote_addr if request.args.get('ip') is None else request.args.get('ip')
     metadata = getattr(g, 'metadata', None)
-    delay_time = 0 if request.args.get('delay') is None else int(request.args.get('delay'))
+    delay_time = 0 if request.args.get('delay') is None else float(request.args.get('delay'))
     filename = request.args.get('uuid')
     if app.config['use_dist_replication']:
         metadata.add_concurrent_request(filename, ip_address)
