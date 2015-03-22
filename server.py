@@ -215,8 +215,8 @@ def before_request():
 @app.teardown_request
 def teardown_request(exception):
     metadata = getattr(g, 'metadata', None)
-    if metadata is not None:
-        metadata.close_connection()
+    # if metadata is not None:
+    #     metadata.close_connection()
 
 # Setup the callback method.
 @app.after_request
@@ -291,7 +291,7 @@ if __name__ == '__main__':
                 metadata.update_server(server, 0)
     else:
         metadata.update_servers(server_list)
-    metadata.close_connection()
+    # metadata.close_connection()
 
     # Start Flask
     app.config['HOST'] = current_machine # todo: not sure if this is correct.
