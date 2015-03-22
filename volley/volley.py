@@ -43,7 +43,7 @@ class Volley:
 
   # PHASE 1: Compute Initial Placement
   def place_initial(self):
-    self.log_cursor.execute('SELECT DISTINCT uuid FROM Log WHERE request_type = "READ"')
+    self.log_cursor.execute('SELECT DISTINCT uuid FROM Log WHERE request_type = "READ" AND status = 200')
     uuid_tuples = self.log_cursor.fetchall()
 
     locations_by_uuid = {}
@@ -73,14 +73,14 @@ class Volley:
       self.log_cursor.execute('SELECT destination_entity, response_size FROM Log WHERE request_type = "READ" AND uuid = ? AND status = 200', (uuid,))
       metadata_result = self.log_cursor.fetchone()
       if metadata_result is None:
-        raise ValueError('Current server location and file size could not be found for uuid: ' + uuid)
+        raise Exception('Current server location and file size could not be found for uuid: ' + uuid)
       metadata['current_server'] = metadata_result[0]
       metadata['file_size'] = metadata_result[1]
 
       self.log_cursor.execute('SELECT count(*) FROM Log WHERE request_type = "READ" AND uuid = ?', (uuid,))
       request_count_result = self.log_cursor.fetchone()
       if request_count_result is None:
-        raise ValueError('Number of requests could not be found for uuid: ' + uuid)
+        raise Exception('Number of requests could not be found for uuid: ' + uuid)
       metadata['request_count'] = request_count_result[0]
       
       best_servers = self.find_closest_servers(location)
