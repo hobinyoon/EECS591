@@ -74,7 +74,16 @@ def read_file():
             # If not, replicate to another server.
             if int(concurrent_requests) >= app.config['k']:
                 # 1) Find the closest server.
-                target_server = metadata.get_closest_server()
+                known_servers = metadata.get_all_server_without_port(app.config['HOST'])
+                concurrent_connections = metadata.get_concurrent_connections(filename)
+                closest_servers = dict()
+                for concurrent_connection in concurrent_connections:
+                    closest_server = util.find_closest_servers_with_ip(concurrent_connection)
+                    if closest_server not in closest_servers:
+                        closest_servers[closest_server] = 1
+                    else:
+                        closest_servers[closest_server] += 1
+                target_server = max(closes_servers)
                 # 2) Check if there is enough space on the remote server.
                 url = 'http://%s/can_move_file?%s' % (target_server, urllib.urlencode({ 'uuid': filename }))
                 response = requests.get(url)
@@ -211,13 +220,6 @@ def shutdown():
 def before_request():
     g.metadata = metadata_manager.MetadataManager()
 
-# Close the metadata database connection
-@app.teardown_request
-def teardown_request(exception):
-    metadata = getattr(g, 'metadata', None)
-    if metadata is not None:
-        metadata.close_connection()
-
 # Setup the callback method.
 @app.after_request
 def call_after_request_callbacks(response):
@@ -291,7 +293,6 @@ if __name__ == '__main__':
                 metadata.update_server(server, 0)
     else:
         metadata.update_servers(server_list)
-    metadata.close_connection()
 
     # Start Flask
     app.config['HOST'] = current_machine # todo: not sure if this is correct.
