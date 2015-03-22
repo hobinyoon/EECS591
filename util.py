@@ -92,6 +92,10 @@ def find_closest_servers_with_ip(self, ip_addr, servers_to_search = None):
 
     return best_servers
 
+# Gets sort key for sort function to sort by ascending distance
+def get_distance_key(self, server_dict):
+    return server_dict['distance']
+
 # get distance between two ip addresses
 def get_distance_from_ip(ip_addr1, ip_addr2):
     ip_cache = ip_location_cache()
