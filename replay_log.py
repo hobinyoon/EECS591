@@ -36,7 +36,7 @@ def read_file(file_uuid, source_ip = None, delay = None):
     query_parameters['ip'] = source_ip
   if delay is not None:
     query_parameters['delay'] = delay
-  
+
   # it doesn't matter where you make the request because it will redirect
   read_url = 'http://%s/read?%s' % (SERVER_LIST[0], urllib.urlencode(query_parameters))
 
@@ -111,11 +111,11 @@ def replay_log(log_file, request_to_file_uuid, enable_concurrency = True):
       concurrent_processes, concurrent_uuid = check_concurrent_execution_and_wait(concurrent_processes, concurrent_uuid, uuid)
 
       delay = float(request_size) / DELAY_FACTOR
-      
+
       if delay > MAX_DELAY:
         delay = MAX_DELAY
-      
-      # run concurrently        
+
+      # run concurrently
       process = Process(target=read_file, args=(uuid, request_source, delay))
       process.start()
       concurrent_processes.append(process)

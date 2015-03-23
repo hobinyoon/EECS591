@@ -239,7 +239,7 @@ def after_this_request(f):
 # Entry point for the app
 if __name__ == '__main__':
     # Default values
-    hostname = '0.0.0.0'
+    hostname = 'localhost'
     port = '5000'
     processes = 1
     start_with_debug = False
