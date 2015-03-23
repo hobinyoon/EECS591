@@ -149,11 +149,11 @@ def clone_file(file_uuid, destination, method, ip_address):
         return make_response('File not found', 404)
     destination_with_endpoint = 'http://' + destination + '/write'
     files = {'file': open(file_path, 'rb')}
-    write_request = requests.post(destination_with_endpoint, files)
+    write_request = requests.post(destination_with_endpoint, files=files)
     if (write_request.status_code == 201):
         metadata.update_file_stored(file_uuid, destination)
     host_address = app.config['simulation_ip'] if 'simulation_ip' in app.config else app.config('HOST')
-    logger.log(filename, ip_address, host_address, method, write_request.status_code, os.path.getsize(file_path))
+    logger.log(file_uuid, ip_address, host_address, method, write_request.status_code, os.path.getsize(file_path))
     return write_request
 
 # Transfers the file. This API call should not be open to all users.
@@ -161,18 +161,42 @@ def clone_file(file_uuid, destination, method, ip_address):
 def transfer():
     ip_address = request.args.get('ip') if 'ip' in request.args else request.remote_addr
     metadata = getattr(g, 'metadata', None)
-    write_request = clone_file(request.args.get('uuid'), request.args.get('destination'), 'TRANSFER', ip_address)
-    if write_request.status_code == 201:
+    file_uuid = request.args.get('uuid')
+    destination = request.args.get('destination')
+    file_path = UPLOAD_FOLDER + '/' + file_uuid
+    if not os.path.exists(file_path):
+        return make_response('File not found', 404)
+    destination_with_endpoint = 'http://' + destination + '/write'
+    files = {'file': open(file_path, 'rb')}
+    write_request = requests.post(destination_with_endpoint, files=files)
+    if (write_request.status_code == 201):
+        metadata.update_file_stored(file_uuid, destination)
+        host_address = app.config['simulation_ip'] if 'simulation_ip' in app.config else app.config('HOST')
+        logger.log(file_uuid, ip_address, host_address, 'TRANSFER', write_request.status_code, os.path.getsize(file_path))
         os.remove(os.path.join(app.config['UPLOAD_FOLDER'], file_uuid))
         metadata.delete_file_stored(request.args.get('uuid'), app.config['HOST'])
-    return write_request
+        return 'Success', 200
+    return 'Not okay', 500
 
 # Replicate the file. This API call should not be open to all users.
 @app.route('/replicate', methods=['PUT'])
 def replicate():
     ip_address = request.args.get('ip') if 'ip' in request.args else request.remote_addr
-    write_request = clone_file(request.args.get('uuid'), request.args.get('destination'), 'REPLICATE', ip_address)
-    return write_request
+    metadata = getattr(g, 'metadata', None)
+    file_uuid = request.args.get('uuid')
+    destination = request.args.get('destination')
+    file_path = UPLOAD_FOLDER + '/' + file_uuid
+    if not os.path.exists(file_path):
+        return make_response('File not found', 404)
+    destination_with_endpoint = 'http://' + destination + '/write'
+    files = {'file': open(file_path, 'rb')}
+    write_request = requests.post(destination_with_endpoint, files=files)
+    if (write_request.status_code == 201):
+        metadata.update_file_stored(file_uuid, destination)
+        host_address = app.config['simulation_ip'] if 'simulation_ip' in app.config else app.config('HOST')
+        logger.log(file_uuid, ip_address, host_address, 'REPLICATE', write_request.status_code, os.path.getsize(file_path))
+        return 'Success', 200
+    return 'Not okay', 500
 
 # Deletes the file. This API call should not be open to all users.
 @app.route('/delete', methods=['DELETE'])
