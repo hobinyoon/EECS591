@@ -44,7 +44,7 @@ class LogManager:
       return None
     return result[0]
 
-  # Retrieve log entries in a specified time period
+  # Retrieve successful log read entries in a specified time period
   #
   # params:
   #   start_timestamp: returned logs start from this integer timestamp
@@ -53,7 +53,7 @@ class LogManager:
     if end_timestamp is None:
       end_timestamp = int(time.time())
 
-    self.cursor.execute('SELECT * FROM Log WHERE request_type = \'READ\' AND timestamp >= ? AND timestamp <= ?', (start_timestamp, int(end_timestamp)))
+    self.cursor.execute('SELECT * FROM Log WHERE request_type = \'READ\' AND status = 200 AND timestamp >= ? AND timestamp <= ?', (start_timestamp, int(end_timestamp)))
     return self.cursor.fetchall()
 
   # Closes the connection to the database

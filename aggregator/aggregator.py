@@ -59,8 +59,8 @@ class Aggregator:
         # this is a bootstrap problem, retrive logs from timestamp 0 is not
         # a good idea. as we don't know where exactly to strat from, use an
         # approximation instead.
-        start_timestamp = self.date_to_timestamp("2015-3-1")
-    
+        start_timestamp = self.date_to_timestamp("2015-3-20")
+
     now = int(time.time())
     current_timestamp = start_timestamp
     while True:
@@ -77,7 +77,7 @@ class Aggregator:
 
   def update_aggregated_logs(self, start_timestamp = None):
     server_list = util.retrieve_server_list()
-    
+
     for server in server_list:
       self.update_log_from_server(server, start_timestamp)
 

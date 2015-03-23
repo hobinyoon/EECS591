@@ -2,6 +2,7 @@
 import argparse
 import replay_log
 import os
+import operator
 import sys
 import util
 
@@ -46,9 +47,11 @@ if __name__ == '__main__':
 
   print '************************* Running simulation *************************'
   before_volley, start_time, end_time, request_map = run_simulation('dataset/sample_log_ready', args['disable_concurrency'])
-  greedy = GreedyReplication()
-  greedy.run_replication()
-  after_volley, start_time, end_time, request_map = run_simulation('dataset/sample_log_ready', args['disable_concurrency'], request_map)
+  Volley(start_time, end_time).execute()
+  after_volley, start_time, end_time, request_map = run_simulation('dataset/sample_log_ready', False, request_map)
+  # greedy = GreedyReplication()
+  # greedy.run_replication()
+  # after_volley, start_time, end_time, request_map = run_simulation('dataset/sample_log_ready', args['disable_concurrency'], request_map)
 
   print '************************* Average latency ****************************'
   print 'BEFORE_VOLLEY: ' + str(before_volley)

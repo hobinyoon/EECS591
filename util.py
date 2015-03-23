@@ -58,19 +58,48 @@ def find_closest_servers(self, location, servers_to_search = None):
 
     return best_servers
 
+def convert_localhost_to_simulation_ip(server):
+    # hardcode AWS servers for simulation
+    if server == 'localhost:5000':
+      server = '54.175.68.60'
+    elif server == 'localhost:5001':
+        server = '54.65.80.55'
+    elif server == 'localhost:5002':
+        server = '54.93.104.58'
+    elif server == 'localhost:5003':
+        server = '54.207.24.208'
+    elif server == 'localhost:5004':
+        server = '54.69.237.99'
+    return server
+
+def convert_server_to_test_server(server):
+  # hardcode AWS servers for simulation
+  if server == '54.175.68.60':
+    server = 'localhost:5000'
+  elif server == '54.65.80.55':
+    server = 'localhost:5001'
+  elif server == '54.93.104.58':
+    server = 'localhost:5002'
+  elif server == '54.207.24.208':
+    server = 'localhost:5003'
+  elif server == '54.69.237.99':
+    server = 'localhost:5004'
+  return server
+
 # Finds the closest server for a lat/long tuple pair
 #
 # params:
 #   ip_addr: the ip_addr
 #   servers_to_search: a list of servers to search. Uses self.servers by default.
 # returns: list of closest to furthest, where each item is a dict with `server` and `distance`
-def find_closest_servers_with_ip(ip_addr, servers_to_search):
+def find_closest_servers_with_ip(ip_addr, servers):
     ip_cache = ip_location_cache()
     servers_to_search = servers
 
     best_servers = []
 
     for server in servers_to_search:
+        server = convert_localhost_to_simulation_ip(server)
         server_dict = { 'server': server, 'distance': None }
         item_location = ip_cache.get_lat_lon_from_ip(ip_addr)
         server_lat_lon = ip_cache.get_lat_lon_from_ip(server)
