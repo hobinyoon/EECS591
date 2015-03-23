@@ -1,5 +1,6 @@
 [host_1]
-host=54.175.68.60
+target_location=localhost
+fake_ip=54.175.68.60
 deployment_port=5000
 processes=1
 directory=/tmp
@@ -11,7 +12,8 @@ use_distributed_replication=false
 ;private_key_filename=~/.ssh/id_rsa
 
 [host_2]
-host=54.65.80.55
+target_location=localhost
+fake_ip=54.65.80.55
 deployment_port=5001
 processes=1
 directory=/tmp
@@ -23,7 +25,8 @@ use_distributed_replication=false
 ;private_key_filename=~/.ssh/id_rsa
 
 [host_3]
-host=54.93.104.58
+target_location=localhost
+fake_ip=54.93.104.58
 deployment_port=5002
 processes=1
 directory=/tmp
@@ -35,7 +38,8 @@ use_distributed_replication=false
 ;private_key_filename=~/.ssh/id_rsa
 
 [host_4]
-host=54.207.24.208
+target_location=localhost
+fake_ip=54.207.24.208
 deployment_port=5003
 processes=1
 directory=/tmp
@@ -47,7 +51,8 @@ use_distributed_replication=false
 ;private_key_filename=~/.ssh/id_rsa
 
 [host_5]
-host=54.69.237.99
+target_location=localhost
+fake_ip=54.69.237.99
 deployment_port=5004
 processes=1
 directory=/tmp

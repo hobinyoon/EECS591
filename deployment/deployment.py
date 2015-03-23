@@ -37,14 +37,15 @@ if (os.path.exists(PREFIX + SERVER_LIST_FILE)):
 
 # Infer server names and produce a file containing a list of servers being deployed.
 for section in parser.sections():
-    host = parser.get(section, 'host')
+    host = parser.get(section, 'fake_ip')
     port = parser.get(section, 'deployment_port')
     with open(PREFIX + SERVER_LIST_FILE, 'a') as server_file:
         server_file.write(host + ':' + port + '\n')
 
 for section in parser.sections():
     print 'Deploying ' + section + '...'
-    host = parser.get(section, 'host')
+    target_location = parser.get(section, 'target_location')
+    host = parser.get(section, 'fake_ip')
     deployment_port = parser.get(section, 'deployment_port')
 
     username = None
@@ -74,14 +75,14 @@ for section in parser.sections():
     base_directory = parser.get(section, 'directory') # Base directory must exists on the target machine
     application_directory = base_directory  + '/' + PROJECT_NAME
     deployment_directory = application_directory + '/' + section
-    ssh.connect(host, username=username, password=password, pkey=private_key_file)
+    ssh.connect(target_location, username=username, password=password, pkey=private_key_file)
 
     # First, create the directories
     execute_ssh_command(ssh, 'rm -rf ' + deployment_directory + '; mkdir -p ' + deployment_directory + '/uploaded; mkdir -p ' + deployment_directory + '/logs')
 
     # Second, copy the necessary files over to the destination
     for filename in FILES_TO_DEPLOY:
-        scp_command = 'scp -r ' + PREFIX + filename + ' ' + username + '@' + host + ':' + application_directory + '/' + section
+        scp_command = 'scp -r ' + PREFIX + filename + ' ' + username + '@' + target_location + ':' + application_directory + '/' + section
         print_command(scp_command)
         os.system(scp_command)
 
