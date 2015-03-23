@@ -17,7 +17,7 @@ class LogManager:
   # Adds log entry into database
   #
   # params:
-  #   log_entry: tab-separated column values for log 
+  #   log_entry: tab-separated column values for log
   def add_log_entry(self, log_entry):
     log_columns = log_entry.split("\t")
     if len(log_columns) == 7:
@@ -44,7 +44,7 @@ class LogManager:
       return None
     return result[0]
 
-  # Retrive log entries in a specified time period
+  # Retrieve log entries in a specified time period
   #
   # params:
   #   start_timestamp: returned logs start from this integer timestamp

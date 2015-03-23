@@ -6,6 +6,7 @@ import os
 import requests
 import sqlite3
 import sys
+import time
 import urllib
 
 from geopy.distance import great_circle
@@ -20,14 +21,43 @@ import util
 # Config
 LOG_DATABASE = os.path.join(up_one_dir, 'aggregator/aggregated_logs.db')
 
+def convert_server_to_test_server(server):
+  # hardcode AWS servers for simulation
+  if server == '54.175.68.60':
+    server = 'localhost:5000'
+  elif server == '54.65.80.55':
+    server = 'localhost:5001'
+  elif server == '54.93.104.58':
+    server = 'localhost:5002'
+  elif server == '54.207.24.208':
+    server = 'localhost:5003'
+  elif server == '54.69.237.99':
+    server = 'localhost:5004'
+  return server
+
 class Volley:
 
-  def __init__(self):
+  def __init__(self, start_time = 0, end_time = int(time.time())):
     self.log_conn = sqlite3.connect(LOG_DATABASE)
     self.log_cursor = self.log_conn.cursor()
     self.ip_cache = ip_location_cache.ip_location_cache()
-    self.servers = util.retrieve_server_list()
+
+    # timestamps for start/end point for logs
+    self.start_time = int(start_time)
+    self.end_time = int(end_time)
+
+    # for now, get from logs. maybe use aggregator to make these calls later?
+    self.log_cursor.execute('SELECT DISTINCT destination_entity FROM Log WHERE request_type = "READ" AND timestamp >= ? AND timestamp <= ?', (self.start_time, self.end_time))
+    server_tuples = self.log_cursor.fetchall()
+
+    self.servers = []
+    for server_tuple in server_tuples:
+        self.servers.append(server_tuple[0])
+    print self.servers
+    # self.servers = util.retrieve_server_list()
+
     self.uuid_metadata = {}     # dictionary mapping uuid -> metadata (includes state-ful data)
+
 
   # Closes the connection to the database
   def close_connection(self):
@@ -43,7 +73,8 @@ class Volley:
 
   # PHASE 1: Compute Initial Placement
   def place_initial(self):
-    self.log_cursor.execute('SELECT DISTINCT uuid FROM Log WHERE request_type = "READ" AND status = 200')
+    # should use aggregator to make these calls later
+    self.log_cursor.execute('SELECT DISTINCT uuid FROM Log WHERE request_type = "READ" AND timestamp >= ? AND timestamp <= ? AND status = 200', (self.start_time, self.end_time))
     uuid_tuples = self.log_cursor.fetchall()
 
     locations_by_uuid = {}
@@ -70,19 +101,21 @@ class Volley:
       metadata = {'current_server': None, 'optimal_location': location, 'uuid': uuid, 'dist': None, 'file_size': None, 'request_count': None}
       best_server = None
 
-      self.log_cursor.execute('SELECT destination_entity, response_size FROM Log WHERE request_type = "READ" AND uuid = ? AND status = 200', (uuid,))
+      # should use aggregator to make these calls later
+      self.log_cursor.execute('SELECT destination_entity, response_size FROM Log WHERE request_type = "READ" AND uuid = ? AND status = 200 AND timestamp >= ? and timestamp <= ?', (uuid, self.start_time, self.end_time))
       metadata_result = self.log_cursor.fetchone()
       if metadata_result is None:
         raise Exception('Current server location and file size could not be found for uuid: ' + uuid)
       metadata['current_server'] = metadata_result[0]
       metadata['file_size'] = metadata_result[1]
 
-      self.log_cursor.execute('SELECT count(*) FROM Log WHERE request_type = "READ" AND uuid = ?', (uuid,))
+      # should use aggregator to make these calls later
+      self.log_cursor.execute('SELECT count(*) FROM Log WHERE request_type = "READ" AND status = 200 AND uuid = ? AND timestamp >= ? AND timestamp <= ?', (uuid, self.start_time, self.end_time))
       request_count_result = self.log_cursor.fetchone()
       if request_count_result is None:
         raise Exception('Number of requests could not be found for uuid: ' + uuid)
       metadata['request_count'] = request_count_result[0]
-      
+
       best_servers = self.find_closest_servers(location)
       best_server = best_servers[0]
       metadata['dist'] = best_server['distance']
@@ -99,10 +132,15 @@ class Volley:
     for optimal_server, uuids in placements_by_server.iteritems():
       for uuid in uuids:
         current_server = self.uuid_metadata[uuid]['current_server']
+
+        # only run these for simulation
+        current_server = convert_server_to_test_server(current_server)
+        optimal_server = convert_server_to_test_server(optimal_server)
+
         if current_server != optimal_server:
           url = 'http://%s/transfer?%s' % (current_server, urllib.urlencode({ 'uuid': uuid, 'destination': optimal_server }))
           print url
-          r = requests.put(url, timeout=5)
+          r = requests.put(url, timeout=30)
           if r.status_code == requests.codes.ok:
             print 'SUCCESS: Migrating ' + uuid + ' from <' + current_server + '> to <' + optimal_server + '>'
           else:
@@ -118,7 +156,7 @@ class Volley:
     return server_dict['distance']
 
   # Finds the closest server for a lat/long tuple pair
-  # 
+  #
   # params:
   #   location: lat/long tuple
   #   servers_to_search: a list of servers to search. Uses self.servers by default.
@@ -126,7 +164,7 @@ class Volley:
   def find_closest_servers(self, location, servers_to_search = None):
     if servers_to_search is None:
       servers_to_search = self.servers
-    
+
     best_servers = []
 
     for server in servers_to_search:
@@ -137,7 +175,7 @@ class Volley:
         raise ValueError('Server <' + server + '> latitude/longitude could not be found!')
       server_location = geopy.Point(server_lat_lon[0], server_lat_lon[1])
       server_dict['distance'] = great_circle(item_location, server_location).km
-      
+
       best_servers.append(server_dict)
 
     best_servers.sort(key=self.get_distance_key)
@@ -149,8 +187,10 @@ class Volley:
   # params:
   #   server: hostname of server to check
   def total_server_capacity(self, server):
+    server = convert_server_to_test_server(server)
+
     url = 'http://%s/capacity?%s' % (server, urllib.urlencode({ 'file_size': 0 }))
-    r = requests.get(url, timeout=5)
+    r = requests.get(url, timeout=30)
     return float(r.text)
 
   # Check capacity and redistribute data to each server
@@ -161,7 +201,7 @@ class Volley:
     space_remaining = {}
     servers_with_capacity = set()
     servers_over_capacity = set()
-    
+
     for server in self.servers:
       space_remaining[server] = self.total_server_capacity(server)
 
@@ -179,7 +219,7 @@ class Volley:
     for server in servers_over_capacity:
       placements = placements_by_server[server]
       placements.sort(key=self.get_sort_key_by_request_count)
-      
+
       # move top uuids to nearest locations (or second-nearest, etc if other servers are full)
       # until server is no longer over capacity
       while space_remaining[server] < 0:
@@ -219,7 +259,7 @@ class Volley:
   def convert_lat_to_degrees(self, lat):
     degrees_from_north_pole = math.degrees(lat)
     degrees_from_equator = (degrees_from_north_pole * -1) + 90
-    
+
     return degrees_from_equator
 
   # Convert longitude to degrees
@@ -243,7 +283,7 @@ class Volley:
     # Need to normalize to [0, 2pi) so that arithmetic mean comes out to a reasonable value
     lng_a = self.normalize_radians(lng_a)
     lng_b = self.normalize_radians(lng_b)
-    
+
     # Here, normalize to [-pi, pi) for longitude
     return self.normalize_radians((lng_a + lng_b) / 2, -1 * math.pi, math.pi)
 
@@ -292,7 +332,7 @@ class Volley:
   def weighted_spherical_mean_helper(self, total_weight, weights, locations):
     if len(weights) != len(locations):
       raise ValueError('Weights and locations must have the same length.')
-    
+
     length = len(weights)
 
     # print '------ Weighted spherical mean -------- '
@@ -318,7 +358,7 @@ class Volley:
   def weighted_spherical_mean(self, uuid):
     # Find results for each source entity
     self.log_cursor.execute('SELECT source_entity, COUNT(source_entity) AS weight FROM Log '
-      'WHERE uuid = ? AND request_type = "READ" GROUP BY source_entity', (uuid,))
+      'WHERE uuid = ? AND request_type = "READ" AND status = 200 AND timestamp >= ? AND timestamp <= ? GROUP BY source_entity', (uuid, self.start_time, self.end_time))
     request_logs = self.log_cursor.fetchall()
     if len(request_logs) == 0:
       return None
@@ -337,5 +377,5 @@ class Volley:
     return self.weighted_spherical_mean_helper(total_weight, weights, locations)
 
 if __name__ == '__main__':
-  volley = Volley()
+  volley = Volley(1427118863, 1427118940)
   volley.execute()

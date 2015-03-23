@@ -43,11 +43,11 @@ def redirect_endpoint():
 @app.route('/write', methods=['POST'])
 def write_file():
     ip_address = request.args.get('ip') if 'ip' in request.args else request.remote_addr
+    file_uuid = request.args.get('uuid') if 'uuid' in request.args else str(uuid.uuid4())
     if 'file' in request.files:
         file = request.files['file']
         metadata = getattr(g, 'metadata', None)
         filename = secure_filename(file.filename)
-        file_uuid = str(uuid.uuid4())
         if not os.path.isdir(app.config['UPLOAD_FOLDER']):
             os.makedirs(app.config['UPLOAD_FOLDER'])
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], file_uuid)
@@ -166,7 +166,7 @@ def transfer():
     file_path = UPLOAD_FOLDER + '/' + file_uuid
     if not os.path.exists(file_path):
         return make_response('File not found', 404)
-    destination_with_endpoint = 'http://' + destination + '/write'
+    destination_with_endpoint = 'http://%s/write?%s' % (destination, urllib.urlencode({ 'uuid': file_uuid }))
     files = {'file': open(file_path, 'rb')}
     write_request = requests.post(destination_with_endpoint, files=files)
     if (write_request.status_code == 201):
@@ -188,7 +188,7 @@ def replicate():
     file_path = UPLOAD_FOLDER + '/' + file_uuid
     if not os.path.exists(file_path):
         return make_response('File not found', 404)
-    destination_with_endpoint = 'http://' + destination + '/write'
+    destination_with_endpoint = 'http://%s/write?%s' % (destination, urllib.urlencode({ 'uuid': file_uuid }))
     files = {'file': open(file_path, 'rb')}
     write_request = requests.post(destination_with_endpoint, files=files)
     if (write_request.status_code == 201):

@@ -10,13 +10,13 @@ from aggregator.aggregator import Aggregator
 class GreedyReplication:
 
   def __init__(self):
+    self.aggregator = Aggregator() # to retrive server logs
     self.client_set = set([]) # [client_ip, ]
     self.server_set = set(self.aggregator.retrieve_server_set()) # [server_ip, ]
     self.content_set = set([]) # [uuid, ]
     self.access_map = {} # {uuid: {client_ip: num_request}}
     self.replica_map = {} # {uuid: {server_ip: num_replica}}
     self.last_timestamp = 0 # the timestamp of last update
-    self.aggregator = Aggregator() # to retrive server logs
     self.sample_interval = 1000 # the time interval between two rounds in second
 
   # update client_set, server_set, content_set, access_info
