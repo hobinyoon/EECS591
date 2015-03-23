@@ -5,11 +5,17 @@ import requests
 import urllib
 import sys
 sys.path.insert(0, 'cache')
+sys.path.insert(0, 'aggregator')
+
+# Project imports
+from ip_location_cache import ip_location_cache
+from aggregator import Aggregator
+
+from geopy.distance import great_circle
 
 # Project imports
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), 'cache'))
 from ip_location_cache import ip_location_cache
-from geopy.distance import great_circle
 
 # Config
 SERVER_LIST_FILE = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'servers.txt')
@@ -100,6 +106,11 @@ def get_distance_from_ip(ip_addr1, ip_addr2):
 def retrieve_server_list():
     with open(SERVER_LIST_FILE, 'rb') as server_file:
         return server_file.read().splitlines()
+
+# get server logs during the experiment
+def get_server_logs(start_time, end_time):
+  aggregator = Aggregator()
+  return aggregator.get_log_entries(start_time, end_time)
 
 # Construct a put request which involves a url and a uuid of the file
 def construct_put_request(url, uuid):

@@ -64,7 +64,7 @@ def write_file():
 def read_file():
     ip_address = request.remote_addr if request.args.get('ip') is None else request.args.get('ip')
     metadata = getattr(g, 'metadata', None)
-    delay_time = 0 if request.args.get('delay') is None else float(request.args.get('delay'))
+    delay_time = 0 if request.args.get('delay') is None else int(request.args.get('delay'))
     filename = request.args.get('uuid')
     if app.config['use_dist_replication']:
         metadata.add_concurrent_request(filename, ip_address)
@@ -97,7 +97,6 @@ def read_file():
         @after_this_request
         def remove_request(response):
             metadata.remove_concurrent_request(filename, ip_address)
-            metadata.close()
 
     file_path = UPLOAD_FOLDER + '/' + secure_filename(filename)
     if (metadata.is_file_exist_locally(filename, app.config['HOST']) is not None):
@@ -138,12 +137,12 @@ def file_exists():
 # Helper method for sending a file to another server
 def clone_file(file_uuid, destination, method, ip_address):
     metadata = getattr(g, 'metadata', None)
-    file_path = UPLOAD_FOLDER + '/' + file_uuid
+    file_path = UPLOADED_FOLDER + '/' + file_uuid
     if not os.path.exists(file_path):
         return make_response('File not found', 404)
-    destination_with_endpoint = 'http://' + destination + '/write'
+    destination_with_endpoint = destination + '/write'
     files = {'file': open(file_path, 'rb')}
-    write_request = requests.post(destination_with_endpoint, files)
+    write_request = requests.post(url, files)
     if (write_request.status_code == 201):
         metadata.update_file_stored(file_uuid, destination)
     logger.log(filename, ip_address, app.config['HOST'], method, write_request.status_code, os.path.getsize(file_path))
@@ -239,7 +238,7 @@ def after_this_request(f):
 # Entry point for the app
 if __name__ == '__main__':
     # Default values
-    hostname = 'localhost'
+    hostname = '0.0.0.0'
     port = '5000'
     processes = 1
     start_with_debug = False

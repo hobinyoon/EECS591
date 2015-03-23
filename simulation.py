@@ -1,20 +1,17 @@
 #!/usr/bin/env python
-import argparse
+
 import replay_log
 import util
 from cache.ip_location_cache import ip_location_cache
-from aggregator.aggregator import Aggregator
 
 SOURCE_INDEX =  2
 DESTINATION_INDEX = 3
 
-def run_simulation(request_log_file, enable_concurrency = True):
+def run_simulation(request_log_file):
   # replaying request log
-  start_time, end_time = replay_log.simulate_requests(request_log_file, enable_concurrency)
+  start_time, end_time = replay_log.simulate_requests(request_log_file)
   # collect server logs
-  aggregator = Aggregator()
-  logs = aggregator.get_log_entries(start_time, end_time)
-
+  logs = util.get_server_logs(start_time, end_time)
   # calculate the average latency
   latency_sum = 0
   request_count = 0
@@ -32,12 +29,7 @@ def run_simulation(request_log_file, enable_concurrency = True):
   return average_latency
 
 if __name__ == '__main__':
-  parser = argparse.ArgumentParser()
-  parser.add_argument('--disable-concurrency', action='store_false', help='disable concurrency (no delays on requests)')
-
-  args = vars(parser.parse_args())
-
   print '************************* Running simulation *************************'
-  average_latency = run_simulation('dataset/sample_log_ready', args['disable_concurrency'])
+  average_latency = run_simulation('sample_log')
   print '************************* Average latency ****************************'
   print average_latency

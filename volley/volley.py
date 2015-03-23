@@ -37,13 +37,11 @@ class Volley:
   def execute(self):
     locations_by_uuid = self.place_initial()
     locations_by_uuid = self.reduce_latency(locations_by_uuid)
-    placements_by_server = self.collapse_to_datacenters(locations_by_uuid)
-    self.migrate_to_locations(placements_by_server)
-    print 'Volley execution complete!'
+    return self.collapse_to_datacenters(locations_by_uuid)
 
   # PHASE 1: Compute Initial Placement
   def place_initial(self):
-    self.log_cursor.execute('SELECT DISTINCT uuid FROM Log WHERE request_type = "READ" AND status = 200')
+    self.log_cursor.execute('SELECT DISTINCT uuid FROM Log WHERE request_type = "READ"')
     uuid_tuples = self.log_cursor.fetchall()
 
     locations_by_uuid = {}
@@ -67,20 +65,19 @@ class Volley:
       placements_by_server[server] = []
 
     for uuid, location in locations_by_uuid.iteritems():
-      metadata = {'current_server': None, 'optimal_location': location, 'uuid': uuid, 'dist': None, 'file_size': None, 'request_count': None}
+      metadata = {'optimal_location': location, 'uuid': uuid, 'dist': None, 'file_size': None, 'request_count': None}
       best_server = None
 
-      self.log_cursor.execute('SELECT destination_entity, response_size FROM Log WHERE request_type = "READ" AND uuid = ? AND status = 200', (uuid,))
-      metadata_result = self.log_cursor.fetchone()
-      if metadata_result is None:
-        raise Exception('Current server location and file size could not be found for uuid: ' + uuid)
-      metadata['current_server'] = metadata_result[0]
-      metadata['file_size'] = metadata_result[1]
+      self.log_cursor.execute('SELECT response_size FROM Log WHERE request_type = "READ" AND uuid = ? AND status = 200', (uuid,))
+      file_size_result = self.log_cursor.fetchone()
+      if file_size_result is None:
+        raise ValueError('File size could not be found for uuid: ' + uuid)
+      metadata['file_size'] = file_size_result[0]
 
       self.log_cursor.execute('SELECT count(*) FROM Log WHERE request_type = "READ" AND uuid = ?', (uuid,))
       request_count_result = self.log_cursor.fetchone()
       if request_count_result is None:
-        raise Exception('Number of requests could not be found for uuid: ' + uuid)
+        raise ValueError('Number of requests could not be found for uuid: ' + uuid)
       metadata['request_count'] = request_count_result[0]
       
       best_servers = self.find_closest_servers(location)
@@ -93,21 +90,6 @@ class Volley:
     placements_by_server = self.redistribute_server_data_by_capacity(placements_by_server)
 
     return placements_by_server
-
-  # PHASE 4: Call migration methods on each server
-  def migrate_to_locations(self, placements_by_server):
-    for optimal_server, uuids in placements_by_server.iteritems():
-      for uuid in uuids:
-        current_server = self.uuid_metadata[uuid]['current_server']
-        if current_server != optimal_server:
-          url = 'http://%s/transfer?%s' % (current_server, urllib.urlencode({ 'uuid': uuid, 'destination': optimal_server }))
-          print url
-          r = requests.put(url, timeout=5)
-          if r.status_code == requests.codes.ok:
-            print 'SUCCESS: Migrating ' + uuid + ' from <' + current_server + '> to <' + optimal_server + '>'
-          else:
-            raise Exception('FAILED: Migrating ' + uuid + ' from <' + current_server + '> to <' + optimal_server + '>')
-
 
   # Gets sort key for sort function to sort by ascending request_count
   def get_sort_key_by_request_count(self, uuid):
@@ -316,6 +298,7 @@ class Volley:
   # params:
   #   uuid: uuid of the data item
   def weighted_spherical_mean(self, uuid):
+    
     # Find results for each source entity
     self.log_cursor.execute('SELECT source_entity, COUNT(source_entity) AS weight FROM Log '
       'WHERE uuid = ? AND request_type = "READ" GROUP BY source_entity', (uuid,))
@@ -335,7 +318,3 @@ class Volley:
 
     total_weight = float(sum(weights))
     return self.weighted_spherical_mean_helper(total_weight, weights, locations)
-
-if __name__ == '__main__':
-  volley = Volley()
-  volley.execute()
