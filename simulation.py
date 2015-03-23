@@ -22,12 +22,13 @@ def run_simulation(request_log_file, enable_concurrency = True):
   for log in logs:
     client_loc = ip_cache.get_lat_lon_from_ip(log[SOURCE_INDEX])
     server_loc = ip_cache.get_lat_lon_from_ip(log[DESTINATION_INDEX])
-    distance = util.get_distance(client_loc, server_loc)
-    unit = 1000.0
-    latency = distance / unit
-    request_importance = 1
-    latency_sum += latency * request_importance
-    request_count += request_importance
+    if client_loc is not None and server_loc is not None:
+        distance = util.get_distance(client_loc, server_loc)
+        unit = 1000.0
+        latency = distance / unit
+        request_importance = 1
+        latency_sum += latency * request_importance
+        request_count += request_importance
   average_latency = latency_sum / request_count
   return average_latency
 

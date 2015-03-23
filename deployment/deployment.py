@@ -37,7 +37,7 @@ if (os.path.exists(PREFIX + SERVER_LIST_FILE)):
 
 # Infer server names and produce a file containing a list of servers being deployed.
 for section in parser.sections():
-    host = parser.get(section, 'fake_ip')
+    host = parser.get(section, 'target_location')
     port = parser.get(section, 'deployment_port')
     with open(PREFIX + SERVER_LIST_FILE, 'a') as server_file:
         server_file.write(host + ':' + port + '\n')

@@ -53,7 +53,7 @@ class LogManager:
     if end_timestamp is None:
       end_timestamp = int(time.time())
 
-    self.cursor.execute('SELECT * FROM Log WHERE timestamp >= ? AND timestamp <= ?', (start_timestamp, int(end_timestamp)))
+    self.cursor.execute('SELECT * FROM Log WHERE request_type = \'READ\' AND timestamp >= ? AND timestamp <= ?', (start_timestamp, int(end_timestamp)))
     return self.cursor.fetchall()
 
   # Closes the connection to the database

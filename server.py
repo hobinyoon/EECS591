@@ -42,7 +42,7 @@ def redirect_endpoint():
 # Endpoint for write method
 @app.route('/write', methods=['POST'])
 def write_file():
-    ip_address = request.remote_addr if request.args.get('ip') is None else request.args.get('ip')
+    ip_address = request.args.get('ip') if 'ip' in request.args else request.remote_addr
     if 'file' in request.files:
         file = request.files['file']
         metadata = getattr(g, 'metadata', None)
@@ -53,16 +53,18 @@ def write_file():
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], file_uuid)
         file.save(file_path)
         metadata.update_file_stored(file_uuid, app.config['HOST'])
-        logger.log(file_uuid, ip_address, app.config['HOST'], 'WRITE', 201, os.path.getsize(file_path))
+        host_address = app.config['simulation_ip'] if 'simulation_ip' in app.config else app.config('HOST')
+        logger.log(file_uuid, ip_address, host_address, 'WRITE', 201, os.path.getsize(file_path))
         return file_uuid, 201
     else:
-        logger.log('NO_FILE', ip_address, app.config['HOST'], 'WRITE', 400, -1)
+        host_address = app.config['simulation_ip'] if 'simulation_ip' in app.config else app.config('HOST')
+        logger.log('NO_FILE', ip_address, host_address, 'WRITE', 400, -1)
         return 'Write Failed', 400
 
 # Endpoint for read method
 @app.route('/read', methods=['GET'])
 def read_file():
-    ip_address = request.remote_addr if request.args.get('ip') is None else request.args.get('ip')
+    ip_address = request.args.get('ip') if 'ip' in request.args else request.remote_addr
     metadata = getattr(g, 'metadata', None)
     delay_time = 0 if request.args.get('delay') is None else float(request.args.get('delay'))
     filename = request.args.get('uuid')
@@ -101,14 +103,16 @@ def read_file():
 
     file_path = UPLOAD_FOLDER + '/' + secure_filename(filename)
     if (metadata.is_file_exist_locally(filename, app.config['HOST']) is not None):
-        logger.log(filename, ip_address, app.config['HOST'], 'READ', 200, os.path.getsize(file_path))
+        host_address = app.config['simulation_ip'] if 'simulation_ip' in app.config else app.config('HOST')
+        logger.log(filename, ip_address, host_address, 'READ', 200, os.path.getsize(file_path))
         time.sleep(delay_time)
         return send_from_directory(UPLOAD_FOLDER, secure_filename(filename))
 
     redirect_address = metadata.lookup_file(filename, app.config['HOST'])
     if (redirect_address is not None):
-        url = 'http://%s/read?%s' % (redirect_address[0], urllib.urlencode({ 'uuid': filename }))
-        logger.log(filename, ip_address, app.config['HOST'], 'READ', 302, -1)
+        host_address = app.config['simulation_ip'] if 'simulation_ip' in app.config else app.config('HOST')
+        url = 'http://%s/read?%s' % (redirect_address[0], urllib.urlencode({ 'uuid': filename, 'ip': host_address }))
+        logger.log(filename, ip_address, host_address, 'READ', 302, -1)
         return redirect(url, code=302)
 
     other_servers = metadata.get_all_server(app.config['HOST'])
@@ -117,12 +121,14 @@ def read_file():
             url = 'http://%s/file_exists?%s' % (server, urllib.urlencode({ 'uuid': filename }))
             lookup_request = requests.get(url)
             if (lookup_request.status_code == 200):
-                redirection_url = 'http://%s/read?%s' % (server, urllib.urlencode({ 'uuid': filename }))
+                host_address = app.config['simulation_ip'] if 'simulation_ip' in app.config else app.config('HOST')
+                url = 'http://%s/read?%s' % (server, urllib.urlencode({ 'uuid': filename, 'ip': host_address }))
                 metadata.update_file_stored(filename, server)
-                logger.log(filename, ip_address, app.config['HOST'], 'READ', 302, -1)
-                return redirect(redirection_url, code=302)
+                logger.log(filename, ip_address, host_address, 'READ', 302, -1)
+                return redirect(url, code=302)
 
-    logger.log(filename, ip_address, app.config['HOST'], 'READ', 404, -1)
+    host_address = app.config['simulation_ip'] if 'simulation_ip' in app.config else app.config('HOST')
+    logger.log(filename, ip_address, host_address, 'READ', 404, -1)
     return 'File Not Found', 404
 
 @app.route('/file_exists', methods=['GET'])
@@ -143,29 +149,54 @@ def clone_file(file_uuid, destination, method, ip_address):
         return make_response('File not found', 404)
     destination_with_endpoint = 'http://' + destination + '/write'
     files = {'file': open(file_path, 'rb')}
-    write_request = requests.post(destination_with_endpoint, files)
+    write_request = requests.post(destination_with_endpoint, files=files)
     if (write_request.status_code == 201):
         metadata.update_file_stored(file_uuid, destination)
-    logger.log(filename, ip_address, app.config['HOST'], method, write_request.status_code, os.path.getsize(file_path))
+    host_address = app.config['simulation_ip'] if 'simulation_ip' in app.config else app.config('HOST')
+    logger.log(file_uuid, ip_address, host_address, method, write_request.status_code, os.path.getsize(file_path))
     return write_request
 
 # Transfers the file. This API call should not be open to all users.
 @app.route('/transfer', methods=['PUT'])
 def transfer():
-    ip_address = request.remote_addr if request.args.get('ip') is None else request.args.get('ip')
+    ip_address = request.args.get('ip') if 'ip' in request.args else request.remote_addr
     metadata = getattr(g, 'metadata', None)
-    write_request = clone_file(request.args.get('uuid'), request.args.get('destination'), 'TRANSFER', ip_address)
-    if write_request.status_code == 201:
+    file_uuid = request.args.get('uuid')
+    destination = request.args.get('destination')
+    file_path = UPLOAD_FOLDER + '/' + file_uuid
+    if not os.path.exists(file_path):
+        return make_response('File not found', 404)
+    destination_with_endpoint = 'http://' + destination + '/write'
+    files = {'file': open(file_path, 'rb')}
+    write_request = requests.post(destination_with_endpoint, files=files)
+    if (write_request.status_code == 201):
+        metadata.update_file_stored(file_uuid, destination)
+        host_address = app.config['simulation_ip'] if 'simulation_ip' in app.config else app.config('HOST')
+        logger.log(file_uuid, ip_address, host_address, 'TRANSFER', write_request.status_code, os.path.getsize(file_path))
         os.remove(os.path.join(app.config['UPLOAD_FOLDER'], file_uuid))
         metadata.delete_file_stored(request.args.get('uuid'), app.config['HOST'])
-    return write_request
+        return 'Success', 200
+    return 'Not okay', 500
 
 # Replicate the file. This API call should not be open to all users.
 @app.route('/replicate', methods=['PUT'])
 def replicate():
-    ip_address = request.remote_addr if request.args.get('ip') is None else request.args.get('ip')
-    write_request = clone_file(request.args.get('uuid'), request.args.get('destination'), 'REPLICATE', ip_address)
-    return write_request
+    ip_address = request.args.get('ip') if 'ip' in request.args else request.remote_addr
+    metadata = getattr(g, 'metadata', None)
+    file_uuid = request.args.get('uuid')
+    destination = request.args.get('destination')
+    file_path = UPLOAD_FOLDER + '/' + file_uuid
+    if not os.path.exists(file_path):
+        return make_response('File not found', 404)
+    destination_with_endpoint = 'http://' + destination + '/write'
+    files = {'file': open(file_path, 'rb')}
+    write_request = requests.post(destination_with_endpoint, files=files)
+    if (write_request.status_code == 201):
+        metadata.update_file_stored(file_uuid, destination)
+        host_address = app.config['simulation_ip'] if 'simulation_ip' in app.config else app.config('HOST')
+        logger.log(file_uuid, ip_address, host_address, 'REPLICATE', write_request.status_code, os.path.getsize(file_path))
+        return 'Success', 200
+    return 'Not okay', 500
 
 # Deletes the file. This API call should not be open to all users.
 @app.route('/delete', methods=['DELETE'])
@@ -249,6 +280,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('serverlist', help='the file containing the host of other servers')
     parser.add_argument('--host', help='the host for the server')
+    parser.add_argument('--simulation-ip', help='assigns the simulation-ip to the server')
     parser.add_argument('--port', help='the port for deployment')
     parser.add_argument('--processes', help='specify the number of processes to start the server with')
     parser.add_argument('--with-debug', action='store_true', help='starts the server with debug mode')
@@ -268,6 +300,8 @@ if __name__ == '__main__':
         processes = args['processes']
     if args['with_debug'] is not None:
         start_with_debug = args['with_debug']
+    if args['simulation_ip'] is not None:
+        app.config['simulation_ip'] = args['simulation_ip']
 
     # Read the file
     with open(SERVER_LIST_FILE, 'rb') as server_file:

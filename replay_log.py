@@ -39,6 +39,7 @@ def read_file(file_uuid, source_ip = None, delay = None):
 
   # it doesn't matter where you make the request because it will redirect
   read_url = 'http://%s/read?%s' % (SERVER_LIST[0], urllib.urlencode(query_parameters))
+  print read_url
 
   # may need get latency number
   r = requests.get(read_url, stream=True)
@@ -135,6 +136,6 @@ def simulate_requests(request_log_file, enable_concurrency = True):
     os.makedirs(CLIENT_DOWNLOAD_FOLDER)
   request_map = populate_server_with_log(request_log_file)
   start_time = int(time.time())
-  end_time = int(time.time())
   replay_log(request_log_file, request_map, enable_concurrency)
+  end_time = int(time.time())
   return (start_time, end_time)
