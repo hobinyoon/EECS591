@@ -8,4 +8,4 @@ storage_limit=5242880
 r_max=100000000
 
 # The maximum concurrent number of requests to the file
-k=20
+k=2
