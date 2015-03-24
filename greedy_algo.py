@@ -78,21 +78,6 @@ class GreedyReplication:
         else:
           # usually we don't write file more than once on a server
           self.replica_map[uuid][dest] += 1
-          
-    """
-    for c in self.content_set:
-      if c not in self.access_map:
-        self.access_map[c] = {}
-      if c not in self.replica_map:
-        self.replica_map[c] = {}
-      for a in self.client_set:
-        if a not in self.access_map[c]:
-          self.access_map[c][a] = 0
-      for s in self.server_set:
-        if s not in self.replica_map[c]:
-          self.replica_map[c][a] = 0
-    """
-
     self.last_timestamp = current_timestamp
 
   def run_replication(self):
