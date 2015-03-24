@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import time
 import argparse
 import replay_log
 import os
@@ -16,7 +17,7 @@ DESTINATION_INDEX = 3
 
 def run_simulation(request_log_file, enable_concurrency = True, request_map = None):
   # replaying request log
-  start_time, end_time, request_map = replay_log.simulate_requests(request_log_file, enable_concurrency, request_map)
+  start_time, end_time, request_map,uuid_to_server = replay_log.simulate_requests(request_log_file, enable_concurrency, request_map)
   # collect server logs
   aggregator = Aggregator()
   logs = aggregator.get_log_entries(start_time, end_time)
@@ -36,7 +37,7 @@ def run_simulation(request_log_file, enable_concurrency = True, request_map = No
         latency_sum += latency * request_importance
         request_count += request_importance
   average_latency = latency_sum / request_count
-  return average_latency, start_time, end_time, request_map
+  return average_latency, start_time, end_time, request_map, uuid_to_server
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
@@ -44,12 +45,15 @@ if __name__ == '__main__':
 
   args = vars(parser.parse_args())
 
-  print '************************* Running simulation *************************'
-  before_volley, start_time, end_time, request_map = run_simulation('dataset/sample_log_ready', args['disable_concurrency'])
   greedy = GreedyReplication()
+  #greedy.last_timestamp = int(time.time())
+
+  print '************************* Running simulation *************************'
+  before_volley, start_time, end_time, request_map, uuid_to_server = run_simulation('dataset/sample_log_ready', args['disable_concurrency'])
+  greedy.uuid_to_server = uuid_to_server
   greedy.run_replication()
-  after_volley, start_time, end_time, request_map = run_simulation('dataset/sample_log_ready', args['disable_concurrency'], request_map)
+  after_volley, start_time, end_time, request_map, uuid_to_server = run_simulation('dataset/sample_log_ready', args['disable_concurrency'], request_map)
 
   print '************************* Average latency ****************************'
-  print 'BEFORE_VOLLEY: ' + str(before_volley)
-  print 'AFTER_VOLLEY: ' + str(after_volley)
+  print 'BEFORE_greedy: ' + str(before_volley)
+  print 'AFTER_greedy: ' + str(after_volley)

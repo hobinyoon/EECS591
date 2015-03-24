@@ -59,6 +59,7 @@ def read_file(file_uuid, source_ip = None, delay = None):
 
 def populate_server_with_log(log_file):
   request_to_file_uuid = {}
+  uuid_to_server = {}
   fd = open(log_file, 'r')
   i = 0
   for line in fd:
@@ -68,6 +69,7 @@ def populate_server_with_log(log_file):
       files = {'file': ('request' + str(i), request_content)}
       i += 1
       write_url = 'http://%s/write' % (SERVER_LIST[i % len(SERVER_LIST)])
+      server = SERVER_LIST[i % len(SERVER_LIST)]
       r = requests.post(write_url, files = files)
       print write_url
       print files
@@ -77,8 +79,9 @@ def populate_server_with_log(log_file):
         raise ValueError('post request failed')
       file_uuid = r.text
       request_to_file_uuid[request_content] = file_uuid
+      uuid_to_server[file_uuid] = server
   fd.close()
-  return request_to_file_uuid
+  return request_to_file_uuid, uuid_to_server
 
 # helper function to pause until concurrent execution is finished
 def check_concurrent_execution_and_wait(concurrent_processes, concurrent_uuid, uuid):
@@ -135,8 +138,10 @@ def simulate_requests(request_log_file, enable_concurrency = True, request_map =
   if not os.path.exists(CLIENT_DOWNLOAD_FOLDER):
     os.makedirs(CLIENT_DOWNLOAD_FOLDER)
   if request_map is None:
-    request_map = populate_server_with_log(request_log_file)
+    request_map, uuid_to_server = populate_server_with_log(request_log_file)
+  else:
+    uuid_to_server = None
   start_time = int(time.time())
   replay_log(request_log_file, request_map, enable_concurrency)
   end_time = int(time.time())
-  return (start_time, end_time, request_map)
+  return (start_time, end_time, request_map, uuid_to_server)
