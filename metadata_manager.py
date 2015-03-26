@@ -5,7 +5,7 @@ import sqlite3
 class MetadataManager:
 
     def __init__(self):
-        self.conn = sqlite3.connect('metadata.db')
+        self.conn = sqlite3.connect('metadata.db', check_same_thread=False)
         self.cursor = self.conn.cursor()
 
     # Returns the server that stores the file excluding the local machine
