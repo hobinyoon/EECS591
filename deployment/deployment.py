@@ -69,19 +69,9 @@ for section in parser.sections():
         username = parser.get(section, 'username')
     if parser.has_option(section, 'password'):
         password = parser.get(section, 'password')
-    if parser.has_option(section, 'simulation_ip'):
-        simulation_ip = parser.get(section, 'simulation_ip')
     if parser.has_option(section, 'key_filename'):
         private_key_filename = parser.get(section, 'key_filename')
         private_key_file = paramiko.RSAKey.from_private_key_file(private_key_filename)
-    if parser.has_option(section, 'processes'):
-        processes = parser.get(section, 'processes')
-    if parser.has_option(section, 'debug'):
-        debug = bool(parser.get(section, 'debug'))
-    if parser.has_option(section, 'clear_metadata'):
-        clear_metadata = bool(parser.get(section, 'clear_metadata'))
-    if parser.has_option(section, 'use_distributed_replication'):
-        use_distributed_replication = bool(parser.get(section, 'use_distributed_replication'))
 
     base_directory = parser.get(section, 'directory') # Base directory must exists on the target machine
     application_directory = base_directory  + '/' + PROJECT_NAME
