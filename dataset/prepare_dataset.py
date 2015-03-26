@@ -1,6 +1,7 @@
 import argparse
 import os
 import random
+import re
 import socket
 
 def prepare_dataset(file_name, k):
@@ -16,19 +17,26 @@ def prepare_dataset(file_name, k):
             # (1) modify the request_source's hostname to ip address
             result_line = ''
             request_source_splitted = request_source.split(' ')
-            splitted_hostname = request_source_splitted[0].split('.')
             addr = None
-            hostname = ''
-            for i in range(len(splitted_hostname) - 1, 0, -1):
-                hostname = splitted_hostname[i] + '.' + hostname
-                try:
-                    addr = socket.gethostbyname(hostname)
-                except Exception:
-                    addr = None
+            if not re.match(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", request_source_splitted[0]):
+                splitted_hostname = request_source_splitted[0].split('.')
+                hostname = ''
+                for i in range(len(splitted_hostname) - 1, 0, -1):
+                    hostname = splitted_hostname[i] + '.' + hostname
+                    try:
+                        addr = socket.gethostbyname(hostname)
+                    except Exception:
+                        addr = None
 
-                if addr is not None:
-                    result_line = result_line + str(addr)
-                    break
+                    if addr is not None:
+                        result_line = result_line + str(addr)
+                        break
+
+            # request_source is already an IP
+            else:
+                print 'request_source_splitted: ' + request_source_splitted[0]
+                addr = request_source_splitted[0]
+                result_line = result_line + str(addr)
 
             # (2) add delay and concurrent requests to the dataset
             if addr is not None:

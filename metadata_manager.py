@@ -84,7 +84,11 @@ class MetadataManager:
     # returns a list containing the concurrent connections to the file, uuid
     def get_concurrent_connections(self, uuid):
         self.cursor.execute('SELECT requestId FROM Connections WHERE uuid=?', (uuid,))
-        return self.cursor.fetchall()
+        results = self.cursor.fetchall()
+        retval = []
+        for result in results:
+            retval.append(result[0])
+        return retval
 
     # Removes a concurrent request of a uuid from the server.
     def remove_concurrent_request(self, uuid, request_id):
@@ -114,7 +118,7 @@ class MetadataManager:
         for server in servers:
             self.cursor.execute('INSERT INTO KnownServer VALUES (?, ?)', (server.strip(), -1))
             self.conn.commit()
-    
+
     # Closes the connection to the database
     def close(self):
         self.conn.close()

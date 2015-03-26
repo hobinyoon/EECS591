@@ -37,8 +37,9 @@ def read_file(file_uuid, source_ip = None, delay = None):
   if delay is not None:
     query_parameters['delay'] = delay
 
-  # it doesn't matter where you make the request because it will redirect
-  read_url = 'http://%s/read?%s' % (SERVER_LIST[0], urllib.urlencode(query_parameters))
+  closest_servers = util.find_closest_servers_with_ip(source_ip, SERVER_LIST)
+  closest_server_ip = util.convert_server_to_test_server(closest_servers[0]['server'])
+  read_url = 'http://%s/read?%s' % (closest_server_ip, urllib.urlencode(query_parameters))
   print read_url
 
   # may need get latency number
@@ -129,13 +130,16 @@ def replay_log(log_file, request_to_file_uuid, enable_concurrency = True):
       if not succeed:
         raise ValueError('request failed with file uuid: ', uuid)
 
-def simulate_requests(request_log_file, enable_concurrency = True):
+  check_concurrent_execution_and_wait(concurrent_processes, concurrent_uuid, None)
+
+def simulate_requests(request_log_file, enable_concurrency = True, request_map = None):
   if not os.path.exists(CLIENT_UPLOAD_FOLDER):
     os.makedirs(CLIENT_UPLOAD_FOLDER)
   if not os.path.exists(CLIENT_DOWNLOAD_FOLDER):
     os.makedirs(CLIENT_DOWNLOAD_FOLDER)
-  request_map = populate_server_with_log(request_log_file)
+  if request_map is None:
+    request_map = populate_server_with_log(request_log_file)
   start_time = int(time.time())
   replay_log(request_log_file, request_map, enable_concurrency)
   end_time = int(time.time())
-  return (start_time, end_time)
+  return (start_time, end_time, request_map)

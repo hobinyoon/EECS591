@@ -97,18 +97,18 @@ for section in parser.sections():
     execute_ssh_command(ssh, cd_command + 'sqlite3 ' + METADATA_FILE + ' < metadata.sql')
 
     # Fifth, run the server
-    for file in RUN_FILES:
-        file_path = application_directory + '/' + section + '/' + file
-        prefix = 'nohup python ' + file + ' ' + SERVER_LIST_FILE + ' --host ' + host + ' --port ' + deployment_port + ' --processes ' + str(processes)
-        if debug:
-            prefix = prefix + ' --with-debug'
-        if clear_metadata:
-            prefix = prefix + ' --clear-metadata'
-        if use_distributed_replication:
-            prefix = prefix + ' --use-dist-replication'
-        suffix = ' &'
-        run_command = prefix + suffix
-        execute_ssh_command(ssh, cd_command + run_command)
+    # for file in RUN_FILES:
+    #     file_path = application_directory + '/' + section + '/' + file
+    #     prefix = 'nohup python ' + file + ' ' + SERVER_LIST_FILE + ' --host ' + host + ' --port ' + deployment_port + ' --processes ' + str(processes)
+    #     if debug:
+    #         prefix = prefix + ' --with-debug'
+    #     if clear_metadata:
+    #         prefix = prefix + ' --clear-metadata'
+    #     if use_distributed_replication:
+    #         prefix = prefix + ' --use-dist-replication'
+    #     suffix = ' &'
+    #     run_command = prefix + suffix
+    #     execute_ssh_command(ssh, cd_command + run_command)
 
     # Finally, close the connection
     ssh.close()
