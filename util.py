@@ -57,15 +57,15 @@ def find_closest_servers(self, location, servers_to_search = None):
 # Converts the local hostname to the simulation ip address
 #
 # params:
-#   local_host: the local hostname
-def convert_to_simulation_ip(local_host):
+#   local_ip: the local hostname
+def convert_to_simulation_ip(local_ip):
     if !os.path.exists(SIMULATION_IP_FILE):
         return None
     result = None
     with open(SERVER_LIST_FILE, 'rb') as server_file, open(SIMULATION_IP_FILE, 'rb') as simulation_ip_file:
         for line in server_file:
             simulation_ip = simulation_ip_file.next()
-            if line == localhost:
+            if line == local_ip:
                 result = simulation_ip
                 break
     return result
@@ -73,16 +73,16 @@ def convert_to_simulation_ip(local_host):
 # Converts the simulation ip address to the local hostname
 #
 # params:
-#   local_host: the local hostname
+#   simulation_ip: the simulation ip
 def convert_to_local_hostname(simulation_ip):
     if !os.path.exists(SIMULATION_IP_FILE):
         return None
     result = None
     with open(SERVER_LIST_FILE, 'rb') as server_file, open(SIMULATION_IP_FILE, 'rb') as simulation_ip_file:
         for line in simulation_ip_file:
-            local_hostname = server_file.next()
+            local_ip = server_file.next()
             if line == simulation_ip:
-                result = local_hostname
+                result = local_ip
                 break
     return result
 
