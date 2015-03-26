@@ -58,7 +58,7 @@ def write_file():
         logger.log(file_uuid, ip_address, host_address, 'WRITE', requests.code.created, os.path.getsize(file_path))
         return file_uuid, requests.code.created
     else:
-        host_address = app.config['simulation_ip'] if 'simulation_ip' in app.config else app.configp['HOST']
+        host_address = app.config['simulation_ip'] if 'simulation_ip' in app.config else app.config['HOST']
         logger.log('NO_FILE', ip_address, host_address, 'WRITE', requests.code.bad_request, -1)
         return 'Write Failed', requests.code.bad_request
 
@@ -112,7 +112,6 @@ def read_file():
 def file_exists():
     filename = request.args.get('uuid')
     file_path = UPLOAD_FOLDER + secure_filename(filename)
-    print file_path
     if (os.path.exists(file_path)):
         return app.config['HOST'], requests.code.ok
     else:
@@ -125,7 +124,6 @@ def transfer():
     file_uuid = request.args.get('uuid')
     destination = request.args.get('destination')
     write_request = clone_file(file_uuid, destination, 'TRANSFER', ip_address)
-    print write_request
     if (write_request[1] == requests.codes.created):
         os.remove(os.path.join(app.config['UPLOAD_FOLDER'], file_uuid))
         metadata.delete_file_stored(request.args.get('uuid'), app.config['HOST'])
@@ -230,7 +228,7 @@ def after_this_request(f):
 #   ip_address: the request ip_address
 def clone_file(file_uuid, destination, method, ip_address):
     metadata = getattr(g, 'metadata', None)
-    file_path = UPLOAD_FOLDER + secure_filename(file_uuid)
+    file_path = os.path.join(UPLOAD_FOLDER, secure_filename(file_uuid))
     if not os.path.exists(file_path):
         return 'File not found', requests.code.not_found
     destination_with_endpoint = 'http://%s/write?%s' % (destination, urllib.urlencode({ 'uuid': file_uuid }))
@@ -274,7 +272,6 @@ def distributed_replication(filename, ip_address, delay_time, metadata):
             # 2) Check if there is enough space on the remote server.
             url = 'http://%s/can_move_file?%s' % (target_server, urllib.urlencode({ 'uuid': filename, 'file_size': 0, 'delay': delay_time }))
             response = requests.get(url)
-            print ('2')
             if response.status_code == requests.codes.ok:
                 # 3) Copy the file to that server.
                 clone_file(request.args.get('uuid'), target_server, 'DISTRIBUTED_REPLICATE', ip_address)
