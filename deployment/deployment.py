@@ -21,6 +21,7 @@ def execute_ssh_command(ssh_client, command):
 
 CONFIG_FILE = 'deployment.cnf'
 SERVER_LIST_FILE = 'servers.txt'
+SIMULATION_IP_FILE = 'simulation_ip.txt'
 METADATA_FILE = 'metadata.db'
 PREFIX = '../'
 FILES_TO_DEPLOY = [ 'server.py', 'client.py', 'metadata_manager.py', 'util.py', 'requirements.txt', 'metadata.sql', 'logger.py', 'cache', 'server.cnf', SERVER_LIST_FILE ]
@@ -39,8 +40,15 @@ if (os.path.exists(PREFIX + SERVER_LIST_FILE)):
 for section in parser.sections():
     host = parser.get(section, 'target_location')
     port = parser.get(section, 'deployment_port')
+    simulation_ip = None
+    if parser.has_option(section, 'simulation_ip'):
+        simulation_ip = parser.get(section, 'simulation_ip')
+
     with open(PREFIX + SERVER_LIST_FILE, 'a') as server_file:
         server_file.write(host + ':' + port + '\n')
+    if simulation_ip is not None:
+        with open(PREFIX + SIMULATION_IP_FILE, 'a') as simulation_ip_file:
+            simulation_ip_file.write(simulation_ip)
 
 for section in parser.sections():
     print 'Deploying ' + section + '...'
@@ -55,6 +63,7 @@ for section in parser.sections():
     debug = False
     clear_metadata = False
     use_distributed_replication = False
+    simulation_ip = None
 
     if parser.has_option(section, 'username'):
         username = parser.get(section, 'username')
@@ -63,14 +72,6 @@ for section in parser.sections():
     if parser.has_option(section, 'key_filename'):
         private_key_filename = parser.get(section, 'key_filename')
         private_key_file = paramiko.RSAKey.from_private_key_file(private_key_filename)
-    if parser.has_option(section, 'processes'):
-        processes = parser.get(section, 'processes')
-    if parser.has_option(section, 'debug'):
-        debug = bool(parser.get(section, 'debug'))
-    if parser.has_option(section, 'clear_metadata'):
-        clear_metadata = bool(parser.get(section, 'clear_metadata'))
-    if parser.has_option(section, 'use_distributed_replication'):
-        use_distributed_replication = bool(parser.get(section, 'use_distributed_replication'))
 
     base_directory = parser.get(section, 'directory') # Base directory must exists on the target machine
     application_directory = base_directory  + '/' + PROJECT_NAME
@@ -95,20 +96,6 @@ for section in parser.sections():
 
     # Forth, populate the metadata table
     execute_ssh_command(ssh, cd_command + 'sqlite3 ' + METADATA_FILE + ' < metadata.sql')
-
-    # Fifth, run the server
-    # for file in RUN_FILES:
-    #     file_path = application_directory + '/' + section + '/' + file
-    #     prefix = 'nohup python ' + file + ' ' + SERVER_LIST_FILE + ' --host ' + host + ' --port ' + deployment_port + ' --processes ' + str(processes)
-    #     if debug:
-    #         prefix = prefix + ' --with-debug'
-    #     if clear_metadata:
-    #         prefix = prefix + ' --clear-metadata'
-    #     if use_distributed_replication:
-    #         prefix = prefix + ' --use-dist-replication'
-    #     suffix = ' &'
-    #     run_command = prefix + suffix
-    #     execute_ssh_command(ssh, cd_command + run_command)
 
     # Finally, close the connection
     ssh.close()

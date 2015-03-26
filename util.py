@@ -13,6 +13,7 @@ from geopy.distance import great_circle
 
 # Config
 SERVER_LIST_FILE = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'servers.txt')
+SIMULATION_IP_FILE = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'simulation_ip.txt')
 
 # get distance between two (lat,log) pairs
 def get_distance(location1, location2):
@@ -40,9 +41,7 @@ def find_closest_servers(self, location, servers_to_search = None):
     if servers_to_search is None:
         ip_cache = ip_location_cache()
         servers_to_search = self.servers
-
         best_servers = []
-
         for server in servers_to_search:
             server_dict = { 'server': server, 'distance': None }
             item_location = geopy.Point(location[0], location[1])
@@ -51,12 +50,41 @@ def find_closest_servers(self, location, servers_to_search = None):
                 raise ValueError('Server <' + server + '> latitude/longitude could not be found!')
             server_location = geopy.Point(server_lat_lon[0], server_lat_lon[1])
             server_dict['distance'] = great_circle(item_location, server_location).km
-
             best_servers.append(server_dict)
-
         best_servers.sort(key=self.get_distance_key)
-
     return best_servers
+
+# Converts the local hostname to the simulation ip address
+#
+# params:
+#   local_ip: the local hostname
+def convert_to_simulation_ip(local_ip):
+    if !os.path.exists(SIMULATION_IP_FILE):
+        return local_ip
+    result = local_ip
+    with open(SERVER_LIST_FILE, 'rb') as server_file, open(SIMULATION_IP_FILE, 'rb') as simulation_ip_file:
+        for line in server_file:
+            simulation_ip = simulation_ip_file.next()
+            if line == local_ip:
+                result = simulation_ip
+                break
+    return result
+
+# Converts the simulation ip address to the local hostname
+#
+# params:
+#   simulation_ip: the simulation ip
+def convert_to_local_hostname(simulation_ip):
+    if !os.path.exists(SIMULATION_IP_FILE):
+        return simulation_ip
+    result = simulation_ip
+    with open(SERVER_LIST_FILE, 'rb') as server_file, open(SIMULATION_IP_FILE, 'rb') as simulation_ip_file:
+        for line in simulation_ip_file:
+            local_ip = server_file.next()
+            if line == simulation_ip:
+                result = local_ip
+                break
+    return result
 
 def convert_localhost_to_simulation_ip(server):
     # hardcode AWS servers for simulation
@@ -95,11 +123,9 @@ def convert_server_to_test_server(server):
 def find_closest_servers_with_ip(ip_addr, servers):
     ip_cache = ip_location_cache()
     servers_to_search = servers
-
     best_servers = []
-
     for server in servers_to_search:
-        server = convert_localhost_to_simulation_ip(server)
+        server = convert_to_simulation_ip(server)
         server_dict = { 'server': server, 'distance': None }
         item_location = ip_cache.get_lat_lon_from_ip(ip_addr)
         server_lat_lon = ip_cache.get_lat_lon_from_ip(server)
@@ -107,9 +133,7 @@ def find_closest_servers_with_ip(ip_addr, servers):
             raise ValueError('Server <' + server + '> latitude/longitude could not be found!')
         server_location = geopy.Point(server_lat_lon[0], server_lat_lon[1])
         server_dict['distance'] = great_circle(item_location, server_location).km
-
         best_servers.append(server_dict)
-
     best_servers.sort(key=get_distance_key)
 
     return best_servers

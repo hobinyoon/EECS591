@@ -1,6 +1,6 @@
 [host_1]
 target_location=localhost
-fake_ip=54.175.68.60
+simulation_ip=54.175.68.60
 deployment_port=5000
 processes=1
 directory=/tmp
@@ -13,7 +13,7 @@ use_distributed_replication=false
 
 [host_2]
 target_location=localhost
-fake_ip=54.65.80.55
+simulation_ip=54.65.80.55
 deployment_port=5001
 processes=1
 directory=/tmp
@@ -26,7 +26,7 @@ use_distributed_replication=false
 
 [host_3]
 target_location=localhost
-fake_ip=54.93.104.58
+simulation_ip=54.93.104.58
 deployment_port=5002
 processes=1
 directory=/tmp
@@ -39,7 +39,7 @@ use_distributed_replication=false
 
 [host_4]
 target_location=localhost
-fake_ip=54.207.24.208
+simulation_ip=54.207.24.208
 deployment_port=5003
 processes=1
 directory=/tmp
@@ -52,7 +52,7 @@ use_distributed_replication=false
 
 [host_5]
 target_location=localhost
-fake_ip=54.69.237.99
+simulation_ip=54.69.237.99
 deployment_port=5004
 processes=1
 directory=/tmp
