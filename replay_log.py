@@ -38,7 +38,7 @@ def read_file(file_uuid, source_ip = None, delay = None):
     query_parameters['delay'] = delay
 
   closest_servers = util.find_closest_servers_with_ip(source_ip, SERVER_LIST)
-  closest_server_ip = util.convert_server_to_test_server(closest_servers[0]['server'])
+  closest_server_ip = util.convert_to_local_hostname(closest_servers[0]['server'])
   read_url = 'http://%s/read?%s' % (closest_server_ip, urllib.urlencode(query_parameters))
   print read_url
 

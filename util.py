@@ -60,8 +60,8 @@ def find_closest_servers(self, location, servers_to_search = None):
 #   local_ip: the local hostname
 def convert_to_simulation_ip(local_ip):
     if !os.path.exists(SIMULATION_IP_FILE):
-        return None
-    result = None
+        return local_ip
+    result = local_ip
     with open(SERVER_LIST_FILE, 'rb') as server_file, open(SIMULATION_IP_FILE, 'rb') as simulation_ip_file:
         for line in server_file:
             simulation_ip = simulation_ip_file.next()
@@ -76,8 +76,8 @@ def convert_to_simulation_ip(local_ip):
 #   simulation_ip: the simulation ip
 def convert_to_local_hostname(simulation_ip):
     if !os.path.exists(SIMULATION_IP_FILE):
-        return None
-    result = None
+        return simulation_ip
+    result = simulation_ip
     with open(SERVER_LIST_FILE, 'rb') as server_file, open(SIMULATION_IP_FILE, 'rb') as simulation_ip_file:
         for line in simulation_ip_file:
             local_ip = server_file.next()
@@ -125,7 +125,7 @@ def find_closest_servers_with_ip(ip_addr, servers):
     servers_to_search = servers
     best_servers = []
     for server in servers_to_search:
-        server = convert_localhost_to_simulation_ip(server)
+        server = convert_to_simulation_ip(server)
         server_dict = { 'server': server, 'distance': None }
         item_location = ip_cache.get_lat_lon_from_ip(ip_addr)
         server_lat_lon = ip_cache.get_lat_lon_from_ip(server)

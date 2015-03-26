@@ -267,7 +267,7 @@ def distributed_replication(filename, ip_address, delay_time, metadata):
                     closest_servers[closest_server['server']] += 1
             # target_server = max(closest_servers)
             target_server = max(closest_servers.iteritems(), key=operator.itemgetter(1))[0]
-            target_server = util.convert_server_to_test_server(target_server)
+            target_server = util.convert_to_local_hostname(target_server)
             # 2) Check if there is enough space on the remote server.
             url = 'http://%s/can_move_file?%s' % (target_server, urllib.urlencode({ 'uuid': filename, 'file_size': 0, 'delay': delay_time }))
             response = requests.get(url)
