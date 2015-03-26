@@ -70,7 +70,7 @@ def read_file():
     delay_time = 0 if request.args.get('delay') is None else float(request.args.get('delay'))
     filename = request.args.get('uuid')
 
-    file_path = UPLOAD_FOLDER + '/' + secure_filename(filename)
+    file_path = os.path.join(UPLOAD_FOLDER, secure_filename(filename))
     if (metadata.is_file_exist_locally(filename, app.config['HOST']) is not None):
         if app.config['use_dist_replication']:
             distributed_replication(filename, ip_address, delay_time, metadata)
@@ -79,30 +79,29 @@ def read_file():
             def remove_request(response):
                 metadata.remove_concurrent_request(filename, ip_address)
                 metadata.close()
-
         host_address = app.config['simulation_ip'] if 'simulation_ip' in app.config else app.config['HOST']
         logger.log(filename, ip_address, host_address, 'READ', requests.code.ok, os.path.getsize(file_path))
         time.sleep(delay_time)
         return send_from_directory(UPLOAD_FOLDER, secure_filename(filename))
 
     redirect_address = metadata.lookup_file(filename, app.config['HOST'])
-    if (redirect_address is not None):
-        host_address = app.config['simulation_ip'] if 'simulation_ip' in app.config else app.config['HOST']
-        url = 'http://%s/read?%s' % (redirect_address[0], urllib.urlencode({ 'uuid': filename, 'ip': ip_address }))
+    redirect_url = None
+    if (redirect_address is None):
+        other_servers = metadata.get_all_server(app.config['HOST'])
+        if (len(other_servers) > 0):
+            for server in other_servers:
+                url = 'http://%s/file_exists?%s' % (server, urllib.urlencode({ 'uuid': filename }))
+                lookup_request = requests.get(url)
+                if (lookup_request.status_code == requests.code.ok):
+                    host_address = app.config['simulation_ip'] if 'simulation_ip' in app.config else app.config['HOST']
+                    redirect_url = 'http://%s/read?%s' % (server, urllib.urlencode({ 'uuid': filename, 'ip': ip_address }))
+                    metadata.update_file_stored(filename, server)
+    else:
+        redirect_url = 'http://%s/read?%s' % (redirect_address[0], urllib.urlencode({ 'uuid': filename, 'ip': ip_address }))
+
+    if redirect_url is not None:
         logger.log(filename, ip_address, host_address, 'READ', requests.code.found, -1)
         return redirect(url, code=requests.code.found)
-
-    other_servers = metadata.get_all_server(app.config['HOST'])
-    if (len(other_servers) > 0):
-        for server in other_servers:
-            url = 'http://%s/file_exists?%s' % (server, urllib.urlencode({ 'uuid': filename }))
-            lookup_request = requests.get(url)
-            if (lookup_request.status_code == requests.code.ok):
-                host_address = app.config['simulation_ip'] if 'simulation_ip' in app.config else app.config['HOST']
-                url = 'http://%s/read?%s' % (server, urllib.urlencode({ 'uuid': filename, 'ip': ip_address }))
-                metadata.update_file_stored(filename, server)
-                logger.log(filename, ip_address, host_address, 'READ', requests.code.found, -1)
-                return redirect(url, code=requests.code.found)
 
     host_address = app.config['simulation_ip'] if 'simulation_ip' in app.config else app.config['HOST']
     logger.log(filename, ip_address, host_address, 'READ', requests.code.not_found, -1)
@@ -142,7 +141,7 @@ def replicate():
 def delete():
     metadata = getattr(g, 'metadata', None)
     file_uuid = request.args.get('uuid')
-    file_path = UPLOAD_FOLDER + '/' + file_uuid
+    file_path = os.path.join(UPLOAD_FOLDER, file_uuid)
     if (metadata.is_file_exist_locally(file_uuid, app.config['HOST'])):
         os.remove(file_path)
         metadata.delete_file_stored(file_uuid, app.config['HOST'])
