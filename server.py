@@ -38,7 +38,7 @@ def hello():
 
 @app.route('/redirect')
 def redirect_endpoint():
-    return redirect('http://localhost:5000/read?uuid=xxx', code=302)
+    return redirect('http://localhost:5000/read?uuid=xxx', code=requests.code.found)
 
 # Endpoint for write method
 @app.route('/write', methods=['POST'])
@@ -73,35 +73,7 @@ def read_file():
     file_path = UPLOAD_FOLDER + '/' + secure_filename(filename)
     if (metadata.is_file_exist_locally(filename, app.config['HOST']) is not None):
         if app.config['use_dist_replication']:
-            metadata.add_concurrent_request(filename, ip_address)
-            concurrent_requests = metadata.get_concurrent_request(filename)
-            if concurrent_requests is not None:
-                # Make sure that the number of concurrent requests is under k.
-                # If not, replicate to another server.
-                if int(concurrent_requests) >= int(app.config['k']):
-                    # 1) Find the closest server.
-                    known_servers = metadata.get_all_server(app.config['HOST'])
-                    concurrent_connections = metadata.get_concurrent_connections(filename)
-                    closest_servers = dict()
-                    for concurrent_connection in concurrent_connections:
-                        closest_server = util.find_closest_servers_with_ip(concurrent_connection, known_servers)[0]
-                        if closest_server['server'] not in closest_servers:
-                            closest_servers[closest_server['server']] = 1
-                        else:
-                            closest_servers[closest_server['server']] += 1
-                    # target_server = max(closest_servers)
-                    target_server = max(closest_servers.iteritems(), key=operator.itemgetter(1))[0]
-                    target_server = util.convert_server_to_test_server(target_server)
-                    # 2) Check if there is enough space on the remote server.
-                    url = 'http://%s/can_move_file?%s' % (target_server, urllib.urlencode({ 'uuid': filename, 'file_size': 0, 'delay': delay_time }))
-                    response = requests.get(url)
-                    print ('2')
-                    if response.status_code == requests.codes.ok:
-                        # 3) Copy the file to that server.
-                        clone_file(request.args.get('uuid'), target_server, 'DISTRIBUTED_REPLICATE', ip_address)
-            else:
-                raise Exception('Something fishy is going on... Should have at least one request')
-
+            distributed_replication(filename, ip_address, delay_time, metadata)
             # remove the number of concurrent requests to the file
             @after_this_request
             def remove_request(response):
@@ -145,24 +117,6 @@ def file_exists():
         return app.config['HOST'], requests.code.ok
     else:
         return 'File not found', requests.code.not_found
-
-# Helper method for sending a file to another server
-def clone_file(file_uuid, destination, method, ip_address):
-    metadata = getattr(g, 'metadata', None)
-    file_path = UPLOAD_FOLDER + secure_filename(file_uuid)
-    if not os.path.exists(file_path):
-        return 'File not found', requests.code.not_found
-    destination_with_endpoint = 'http://%s/write?%s' % (destination, urllib.urlencode({ 'uuid': file_uuid }))
-    files = {'file': open(file_path, 'rb')}
-    write_request = requests.post(destination_with_endpoint, files=files)
-    if (write_request.status_code == requests.codes.created):
-        metadata.update_file_stored(file_uuid, destination)
-    host_address = app.config['simulation_ip'] if 'simulation_ip' in app.config else app.config['HOST']
-    logger.log(file_uuid, ip_address, host_address, method, write_request.status_code, os.path.getsize(file_path))
-    if (write_request.status_code == requests.codes.created):
-        return 'Success', requests.code.ok
-    else:
-        return 'Not okay', requests.code.internal_server_error
 
 # Transfers the file. This API call should not be open to all users.
 @app.route('/transfer', methods=['PUT'])
@@ -209,6 +163,7 @@ def logs():
         file_name = list_of_files[0]
     return send_from_directory(LOG_DIRECTORY, secure_filename(file_name))
 
+# Returns whether the server can handle more files.
 @app.route('/can_move_file', methods=['GET'])
 def can_move_file():
     file_size = float(request.args.get('file_size'))
@@ -221,6 +176,7 @@ def can_move_file():
     else:
         return str(response_message), requests.code.request_entity_too_large
 
+# Returns the capacity of the server
 @app.route('/capacity', methods=['GET'])
 def capacity():
     return str(app.config['storage_limit']), requests.code.ok
@@ -233,6 +189,10 @@ def shutdown():
         raise RuntimeError('Not running with the Werkzeug Server')
     func()
     return 'Server is shutting down...', requests.code.ok
+
+###############################################
+# Util methods for setting up the request
+###############################################
 
 # Connect to the metadata database
 @app.before_request
@@ -256,6 +216,70 @@ def after_this_request(f):
         g.after_request_callbacks = []
     g.after_request_callbacks.append(f)
     return f
+
+###############################################
+#  Helper method section
+###############################################
+
+# Helper method for sending a file to another server
+#
+# params:
+#   file_uuid: the file's uuid
+#   destination: the destination to clone the file
+#   method: the method either REPLICATE or TRANSFER
+#   ip_address: the request ip_address
+def clone_file(file_uuid, destination, method, ip_address):
+    metadata = getattr(g, 'metadata', None)
+    file_path = UPLOAD_FOLDER + secure_filename(file_uuid)
+    if not os.path.exists(file_path):
+        return 'File not found', requests.code.not_found
+    destination_with_endpoint = 'http://%s/write?%s' % (destination, urllib.urlencode({ 'uuid': file_uuid }))
+    files = {'file': open(file_path, 'rb')}
+    write_request = requests.post(destination_with_endpoint, files=files)
+    if (write_request.status_code == requests.codes.created):
+        metadata.update_file_stored(file_uuid, destination)
+    host_address = app.config['simulation_ip'] if 'simulation_ip' in app.config else app.config['HOST']
+    logger.log(file_uuid, ip_address, host_address, method, write_request.status_code, os.path.getsize(file_path))
+    if (write_request.status_code == requests.codes.created):
+        return 'Success', requests.code.ok
+    else:
+        return 'Not okay', requests.code.internal_server_error
+
+# Helper for distributed replication
+#
+# params:
+#   filename: the filename
+#   ip_address: the ip_address of the request
+#   metadata: the metadata
+def distributed_replication(filename, ip_address, delay_time, metadata):
+    metadata.add_concurrent_request(filename, ip_address)
+    concurrent_requests = metadata.get_concurrent_request(filename)
+    if concurrent_requests is not None:
+        # Make sure that the number of concurrent requests is under k.
+        # If not, replicate to another server.
+        if int(concurrent_requests) >= int(app.config['k']):
+            # 1) Find the closest server.
+            known_servers = metadata.get_all_server(app.config['HOST'])
+            concurrent_connections = metadata.get_concurrent_connections(filename)
+            closest_servers = dict()
+            for concurrent_connection in concurrent_connections:
+                closest_server = util.find_closest_servers_with_ip(concurrent_connection, known_servers)[0]
+                if closest_server['server'] not in closest_servers:
+                    closest_servers[closest_server['server']] = 1
+                else:
+                    closest_servers[closest_server['server']] += 1
+            # target_server = max(closest_servers)
+            target_server = max(closest_servers.iteritems(), key=operator.itemgetter(1))[0]
+            target_server = util.convert_server_to_test_server(target_server)
+            # 2) Check if there is enough space on the remote server.
+            url = 'http://%s/can_move_file?%s' % (target_server, urllib.urlencode({ 'uuid': filename, 'file_size': 0, 'delay': delay_time }))
+            response = requests.get(url)
+            print ('2')
+            if response.status_code == requests.codes.ok:
+                # 3) Copy the file to that server.
+                clone_file(request.args.get('uuid'), target_server, 'DISTRIBUTED_REPLICATE', ip_address)
+    else:
+        raise Exception('Something fishy is going on... Should have at least one request')
 
 # Entry point for the app
 if __name__ == '__main__':
