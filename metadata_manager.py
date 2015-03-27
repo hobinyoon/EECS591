@@ -72,6 +72,11 @@ class MetadataManager:
             retval.append(result[0].split(':')[0])
         return retval
 
+    def get_file_list_on_server(self, server):
+        self.cursor.execute('SELECT DISTINCE uuid FROM FileMap WHERE server == ?',
+            (server,))
+        return self.cursor.fetchall()
+
     # Clear all metadata from the database.
     def clear_metadata(self):
         self.cursor.execute('DELETE FROM KnownServer')
