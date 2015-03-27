@@ -1,11 +1,14 @@
 # This file implement simplified greedy replication algorithm.
 
 # Python import
+import os
+import sys
 import time
 
 # Project imports
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), 'aggregator'))
 import util
-from aggregator.aggregator import Aggregator
+from aggregator import Aggregator
 
 class GreedyReplication:
 
