@@ -7,10 +7,11 @@ import sys
 import util
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), 'volley'))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), 'aggregator'))
 from volley import Volley
 from greedy_algo import GreedyReplication
 from cache.ip_location_cache import ip_location_cache
-from aggregator.aggregator import Aggregator
+from aggregator import Aggregator
 
 SOURCE_INDEX =  2
 DESTINATION_INDEX = 3
