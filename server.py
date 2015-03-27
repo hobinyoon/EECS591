@@ -70,6 +70,7 @@ def read_file():
     metadata = getattr(g, 'metadata', None)
     delay_time = 0 if request.args.get('delay') is None else float(request.args.get('delay'))
     filename = request.args.get('uuid')
+    host_address = app.config['simulation_ip'] if 'simulation_ip' in app.config else app.config['HOST']
 
     file_path = os.path.join(UPLOAD_FOLDER, secure_filename(filename))
     if (metadata.is_file_exist_locally(filename, app.config['HOST']) is not None):
@@ -80,7 +81,6 @@ def read_file():
             def remove_request(response):
                 metadata.remove_concurrent_request(filename, ip_address)
                 metadata.close()
-        host_address = app.config['simulation_ip'] if 'simulation_ip' in app.config else app.config['HOST']
         logger.log(filename, ip_address, host_address, 'READ', requests.codes.ok, os.path.getsize(file_path))
         time.sleep(delay_time)
         return send_from_directory(UPLOAD_FOLDER, secure_filename(filename))
@@ -94,7 +94,6 @@ def read_file():
                 url = 'http://%s/file_exists?%s' % (server, urllib.urlencode({ 'uuid': filename }))
                 lookup_request = requests.get(url)
                 if (lookup_request.status_code == requests.codes.ok):
-                    host_address = app.config['simulation_ip'] if 'simulation_ip' in app.config else app.config['HOST']
                     redirect_url = 'http://%s/read?%s' % (server, urllib.urlencode({ 'uuid': filename, 'ip': ip_address }))
 
                     # Update metadata - this might be a little inefficient right now, but want to avoid infinite redirects by
@@ -105,9 +104,8 @@ def read_file():
 
     if redirect_url is not None:
         logger.log(filename, ip_address, host_address, 'READ', requests.codes.found, -1)
-        return redirect(url, code=requests.codes.found)
+        return redirect(redirect_url, code=requests.codes.found)
 
-    host_address = app.config['simulation_ip'] if 'simulation_ip' in app.config else app.config['HOST']
     logger.log(filename, ip_address, host_address, 'READ', requests.codes.not_found, -1)
     return 'File Not Found', requests.codes.not_found
 
