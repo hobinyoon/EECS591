@@ -3,6 +3,7 @@ import time
 import argparse
 import replay_log
 import os
+import operator
 import sys
 import util
 
@@ -45,7 +46,7 @@ if __name__ == '__main__':
 
   args = vars(parser.parse_args())
 
-  greedy = GreedyReplication()
+  #greedy = GreedyReplication()
   #greedy.last_timestamp = int(time.time())
 
   print '************************* Running simulation *************************'
@@ -53,6 +54,9 @@ if __name__ == '__main__':
   greedy.uuid_to_server = uuid_to_server
   greedy.run_replication()
   after_volley, start_time, end_time, request_map, uuid_to_server = run_simulation('dataset/sample_log_ready', args['disable_concurrency'], request_map)
+  # for greedy algorithm
+  # greedy.run_replication()
+  # after_volley, start_time, end_time, request_map = run_simulation('dataset/sample_log_ready', args['disable_concurrency'], request_map)
 
   print '************************* Average latency ****************************'
   print 'BEFORE_greedy: ' + str(before_volley)

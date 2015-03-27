@@ -5,7 +5,7 @@ import sqlite3
 class MetadataManager:
 
     def __init__(self):
-        self.conn = sqlite3.connect('metadata.db')
+        self.conn = sqlite3.connect('metadata.db', check_same_thread=False)
         self.cursor = self.conn.cursor()
 
     # Returns the server that stores the file excluding the local machine
@@ -15,7 +15,11 @@ class MetadataManager:
     #   local: the local machine's address
     def lookup_file(self, file_uuid, local):
         self.cursor.execute('SELECT server FROM FileMap WHERE uuid=? AND server<>?', (file_uuid, local))
-        return self.cursor.fetchone()
+        result = self.cursor.fetchone()
+        if result is None:
+            return None
+        else:
+            return result[0]
 
     # Returns the information of the file stored locally on this machine.
     #
@@ -31,8 +35,8 @@ class MetadataManager:
     # params:
     #   file_uuid: the file's uuid
     #   server_stored: the hostname of the server
-    def update_file_stored(self, file_uuid, server_stored):
-        self.cursor.execute('INSERT INTO FileMap VALUES (?, ?)', (file_uuid, server_stored))
+    def update_file_stored(self, file_uuid, server_stored, file_size):
+        self.cursor.execute('INSERT OR REPLACE INTO FileMap VALUES (?, ?, ?)', (file_uuid, server_stored, file_size))
         self.conn.commit()
 
     # Delete the file uuid with the server stored into the database
@@ -84,7 +88,11 @@ class MetadataManager:
     # returns a list containing the concurrent connections to the file, uuid
     def get_concurrent_connections(self, uuid):
         self.cursor.execute('SELECT requestId FROM Connections WHERE uuid=?', (uuid,))
-        return self.cursor.fetchall()
+        results = self.cursor.fetchall()
+        retval = []
+        for result in results:
+            retval.append(result[0])
+        return retval
 
     # Removes a concurrent request of a uuid from the server.
     def remove_concurrent_request(self, uuid, request_id):
@@ -114,7 +122,7 @@ class MetadataManager:
         for server in servers:
             self.cursor.execute('INSERT INTO KnownServer VALUES (?, ?)', (server.strip(), -1))
             self.conn.commit()
-    
+
     # Closes the connection to the database
     def close(self):
         self.conn.close()

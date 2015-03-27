@@ -4,6 +4,7 @@
 # Project Specific
 metadata.db
 servers.txt
+simulation_ip.txt
 ip_location_cache.db
 
 
