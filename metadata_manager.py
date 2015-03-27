@@ -15,7 +15,11 @@ class MetadataManager:
     #   local: the local machine's address
     def lookup_file(self, file_uuid, local):
         self.cursor.execute('SELECT server FROM FileMap WHERE uuid=? AND server<>?', (file_uuid, local))
-        return self.cursor.fetchone()
+        result = self.cursor.fetchone()
+        if result is None:
+            return None
+        else:
+            return result[0]
 
     # Returns the information of the file stored locally on this machine.
     #
@@ -31,8 +35,8 @@ class MetadataManager:
     # params:
     #   file_uuid: the file's uuid
     #   server_stored: the hostname of the server
-    def update_file_stored(self, file_uuid, server_stored):
-        self.cursor.execute('INSERT INTO FileMap VALUES (?, ?)', (file_uuid, server_stored))
+    def update_file_stored(self, file_uuid, server_stored, file_size):
+        self.cursor.execute('INSERT OR REPLACE INTO FileMap VALUES (?, ?, ?)', (file_uuid, server_stored, file_size))
         self.conn.commit()
 
     # Delete the file uuid with the server stored into the database

@@ -33,8 +33,10 @@ parser.read(CONFIG_FILE)
 ssh = paramiko.SSHClient()
 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
-if (os.path.exists(PREFIX + SERVER_LIST_FILE)):
-    os.remove(PREFIX + SERVER_LIST_FILE)
+if (os.path.exists(os.path.join(PREFIX, SERVER_LIST_FILE))):
+    os.remove(os.path.join(PREFIX, SERVER_LIST_FILE))
+if (os.path.exists(os.path.join(PREFIX, SIMULATION_IP_FILE))):
+    os.remove(os.path.join(PREFIX, SIMULATION_IP_FILE))
 
 # Infer server names and produce a file containing a list of servers being deployed.
 for section in parser.sections():
@@ -44,16 +46,16 @@ for section in parser.sections():
     if parser.has_option(section, 'simulation_ip'):
         simulation_ip = parser.get(section, 'simulation_ip')
 
-    with open(PREFIX + SERVER_LIST_FILE, 'a') as server_file:
+    with open(os.path.join(PREFIX, SERVER_LIST_FILE), 'a') as server_file:
         server_file.write(host + ':' + port + '\n')
     if simulation_ip is not None:
-        with open(PREFIX + SIMULATION_IP_FILE, 'a') as simulation_ip_file:
-            simulation_ip_file.write(simulation_ip)
+        with open(os.path.join(PREFIX, SIMULATION_IP_FILE), 'a') as simulation_ip_file:
+            simulation_ip_file.write(simulation_ip + '\n')
 
 for section in parser.sections():
     print 'Deploying ' + section + '...'
     target_location = parser.get(section, 'target_location')
-    host = parser.get(section, 'fake_ip')
+    host = parser.get(section, 'simulation_ip')
     deployment_port = parser.get(section, 'deployment_port')
 
     username = None

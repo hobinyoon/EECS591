@@ -1,5 +1,6 @@
 # Python Library import
 import argparse
+import json
 import socket
 import sys
 import operator
@@ -38,7 +39,7 @@ def hello():
 
 @app.route('/redirect')
 def redirect_endpoint():
-    return redirect('http://localhost:5000/read?uuid=xxx', code=requests.code.found)
+    return redirect('http://localhost:5000/read?uuid=xxx', code=requests.codes.found)
 
 # Endpoint for write method
 @app.route('/write', methods=['POST'])
@@ -53,14 +54,14 @@ def write_file():
             os.makedirs(app.config['UPLOAD_FOLDER'])
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], file_uuid)
         file.save(file_path)
-        metadata.update_file_stored(file_uuid, app.config['HOST'])
+        metadata.update_file_stored(file_uuid, app.config['HOST'], get_file_size(file_path))
         host_address = app.config['simulation_ip'] if 'simulation_ip' in app.config else app.config['HOST']
-        logger.log(file_uuid, ip_address, host_address, 'WRITE', requests.code.created, os.path.getsize(file_path))
-        return file_uuid, requests.code.created
+        logger.log(file_uuid, ip_address, host_address, 'WRITE', requests.codes.created, os.path.getsize(file_path))
+        return file_uuid, requests.codes.created
     else:
         host_address = app.config['simulation_ip'] if 'simulation_ip' in app.config else app.config['HOST']
-        logger.log('NO_FILE', ip_address, host_address, 'WRITE', requests.code.bad_request, -1)
-        return 'Write Failed', requests.code.bad_request
+        logger.log('NO_FILE', ip_address, host_address, 'WRITE', requests.codes.bad_request, -1)
+        return 'Write Failed', requests.codes.bad_request
 
 # Endpoint for read method
 @app.route('/read', methods=['GET'])
@@ -80,7 +81,7 @@ def read_file():
                 metadata.remove_concurrent_request(filename, ip_address)
                 metadata.close()
         host_address = app.config['simulation_ip'] if 'simulation_ip' in app.config else app.config['HOST']
-        logger.log(filename, ip_address, host_address, 'READ', requests.code.ok, os.path.getsize(file_path))
+        logger.log(filename, ip_address, host_address, 'READ', requests.codes.ok, os.path.getsize(file_path))
         time.sleep(delay_time)
         return send_from_directory(UPLOAD_FOLDER, secure_filename(filename))
 
@@ -92,29 +93,32 @@ def read_file():
             for server in other_servers:
                 url = 'http://%s/file_exists?%s' % (server, urllib.urlencode({ 'uuid': filename }))
                 lookup_request = requests.get(url)
-                if (lookup_request.status_code == requests.code.ok):
+                if (lookup_request.status_code == requests.codes.ok):
                     host_address = app.config['simulation_ip'] if 'simulation_ip' in app.config else app.config['HOST']
                     redirect_url = 'http://%s/read?%s' % (server, urllib.urlencode({ 'uuid': filename, 'ip': ip_address }))
-                    metadata.update_file_stored(filename, server)
+
+                    # Update metadata - this might be a little inefficient right now, but want to avoid infinite redirects by
+                    # using file_exists
+                    update_metadata_from_another_server(server, filename)
     else:
         redirect_url = 'http://%s/read?%s' % (redirect_address[0], urllib.urlencode({ 'uuid': filename, 'ip': ip_address }))
 
     if redirect_url is not None:
-        logger.log(filename, ip_address, host_address, 'READ', requests.code.found, -1)
-        return redirect(url, code=requests.code.found)
+        logger.log(filename, ip_address, host_address, 'READ', requests.codes.found, -1)
+        return redirect(url, code=requests.codes.found)
 
     host_address = app.config['simulation_ip'] if 'simulation_ip' in app.config else app.config['HOST']
-    logger.log(filename, ip_address, host_address, 'READ', requests.code.not_found, -1)
-    return 'File Not Found', requests.code.not_found
+    logger.log(filename, ip_address, host_address, 'READ', requests.codes.not_found, -1)
+    return 'File Not Found', requests.codes.not_found
 
 @app.route('/file_exists', methods=['GET'])
 def file_exists():
     filename = request.args.get('uuid')
     file_path = UPLOAD_FOLDER + secure_filename(filename)
     if (os.path.exists(file_path)):
-        return app.config['HOST'], requests.code.ok
+        return app.config['HOST'], requests.codes.ok
     else:
-        return 'File not found', requests.code.not_found
+        return 'File not found', requests.codes.not_found
 
 # Transfers the file. This API call should not be open to all users.
 @app.route('/transfer', methods=['PUT'])
@@ -145,8 +149,8 @@ def delete():
     if (metadata.is_file_exist_locally(file_uuid, app.config['HOST'])):
         os.remove(file_path)
         metadata.delete_file_stored(file_uuid, app.config['HOST'])
-        return 'Success', requests.code.ok
-    return 'File not found', requests.code.not_found
+        return 'Success', requests.codes.ok
+    return 'File not found', requests.codes.not_found
 
 # Returns the log.
 @app.route('/logs', methods=['GET'])
@@ -169,14 +173,46 @@ def can_move_file():
     space_left = int(storage_limit) - current_storage
     response_message = space_left
     if file_size < space_left:
-        return str(response_message), requests.code.ok
+        return str(response_message), requests.codes.ok
     else:
-        return str(response_message), requests.code.request_entity_too_large
+        return str(response_message), requests.codes.request_entity_too_large
 
 # Returns the capacity of the server
 @app.route('/capacity', methods=['GET'])
 def capacity():
-    return str(app.config['storage_limit']), requests.code.ok
+    return str(app.config['storage_limit']), requests.codes.ok
+
+# Updates and retrieves metadata for a file
+@app.route('/metadata', methods=['GET'])
+def metadata():
+    response = None
+
+    filename = request.args.get('uuid')
+
+    file_info = metadata.is_file_exist_locally(filename, app.config['HOST'])
+    
+    if file_info is not None:
+        response = { 'uuid': file_info[0], 'server': file_info[1], 'file_size': file_info[2] }
+    else:
+        server_with_file = metadata.lookup_file(filename, app.config['HOST'])
+        
+        if server_with_file is None:
+            other_servers = metadata.get_all_server(app.config['HOST'])
+            if (len(other_servers) > 0):
+                for server in other_servers:
+                    url = 'http://%s/file_exists?%s' % (server, urllib.urlencode({ 'uuid': filename }))
+                    lookup_request = requests.get(url)
+                    if (lookup_request.status_code == requests.codes.ok):
+                        server_with_file = server
+                        break
+
+        if server_with_file is not None:
+            response = update_metadata_from_another_server(server_with_file, filename)
+
+    if response is None:
+        return 'File not found', requests.codes.not_found
+
+    return json.dumps(response), requests.codes.ok
 
 # Shuts down the server
 @app.route('/shutdown', methods=['GET'])
@@ -185,7 +221,7 @@ def shutdown():
     if func is None:
         raise RuntimeError('Not running with the Werkzeug Server')
     func()
-    return 'Server is shutting down...', requests.code.ok
+    return 'Server is shutting down...', requests.codes.ok
 
 ###############################################
 # Util methods for setting up the request
@@ -218,6 +254,28 @@ def after_this_request(f):
 #  Helper method section
 ###############################################
 
+# Update metadata on this server using info from another server
+#
+# params:
+#   server: server to query/ask
+#   uuid: uuid to query for
+def update_metadata_from_another_server(server, uuid):
+    url = 'http://%s/metadata?%s' % (server, urllib.urlencode({ 'uuid': uuid }))
+    r = requests.get(url)
+    response = json.loads(r.text)
+    metadata.update_file_stored(response['uuid'], response['server'], response['file_size'])
+    return response
+
+# Get the file size of a file
+#
+# params:
+#   file_path: absolute path to file
+def get_file_size(file_path):
+    # Here, we would normally run os.stat to retrieve the file size
+    # But our emulation is that the file consists of an integer with the file size, so we find that instead.
+    file = open(file_path, 'r')
+    return int(file.read())
+
 # Helper method for sending a file to another server
 #
 # params:
@@ -229,18 +287,18 @@ def clone_file(file_uuid, destination, method, ip_address):
     metadata = getattr(g, 'metadata', None)
     file_path = os.path.join(UPLOAD_FOLDER, secure_filename(file_uuid))
     if not os.path.exists(file_path):
-        return 'File not found', requests.code.not_found
+        return 'File not found', requests.codes.not_found
     destination_with_endpoint = 'http://%s/write?%s' % (destination, urllib.urlencode({ 'uuid': file_uuid }))
     files = {'file': open(file_path, 'rb')}
     write_request = requests.post(destination_with_endpoint, files=files)
     if (write_request.status_code == requests.codes.created):
-        metadata.update_file_stored(file_uuid, destination)
+        metadata.update_file_stored(file_uuid, destination, get_file_size(file_path))
     host_address = app.config['simulation_ip'] if 'simulation_ip' in app.config else app.config['HOST']
     logger.log(file_uuid, ip_address, host_address, method, write_request.status_code, os.path.getsize(file_path))
     if (write_request.status_code == requests.codes.created):
-        return 'Success', requests.code.ok
+        return 'Success', requests.codes.ok
     else:
-        return 'Not okay', requests.code.internal_server_error
+        return 'Not okay', requests.codes.internal_server_error
 
 # Helper for distributed replication
 #

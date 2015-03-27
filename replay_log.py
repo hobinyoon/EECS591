@@ -66,7 +66,7 @@ def populate_server_with_log(log_file):
     request_source, request_content, request_size, concurrent = line.split('\t')
     if not request_to_file_uuid.has_key(request_content):
       # take request as a file
-      files = {'file': ('request' + str(i), request_content)}
+      files = {'file': request_size}
       i += 1
       write_url = 'http://%s/write' % (SERVER_LIST[i % len(SERVER_LIST)])
       r = requests.post(write_url, files = files)

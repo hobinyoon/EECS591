@@ -36,14 +36,14 @@ if (os.path.exists(PREFIX + SERVER_LIST_FILE)):
 
 # Infer server names and produce a file containing a list of servers being deployed.
 for section in parser.sections():
-    host = parser.get(section, 'host')
+    host = parser.get(section, 'target_location')
     port = parser.get(section, 'deployment_port')
     with open(PREFIX + SERVER_LIST_FILE, 'a') as server_file:
         server_file.write(host + ':' + port + '\n')
 
 for section in parser.sections():
     print 'Deploying ' + section + '...'
-    host = parser.get(section, 'host')
+    host = parser.get(section, 'target_location')
     deployment_port = parser.get(section, 'deployment_port')
 
     username = None
@@ -86,6 +86,7 @@ for section in parser.sections():
         if simulation_ip is not None:
             prefix = prefix + ' --simulation-ip ' + simulation_ip
         suffix = ' &'
+        cd_command = 'cd ' + deployment_directory + '; '
         run_command = prefix + suffix
         execute_ssh_command(ssh, cd_command + run_command)
 
