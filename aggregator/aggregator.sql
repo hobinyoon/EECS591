@@ -1,6 +1,7 @@
 CREATE TABLE IF NOT EXISTS Log(timestamp integer,
                                uuid text,
                                source_entity text,
+                               source_uuid text,
                                destination_entity text,
                                request_type text,
                                status integer,
