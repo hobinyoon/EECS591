@@ -30,7 +30,7 @@ class GreedyReplication:
     logs = self.aggregator.get_log_entries(last_timestamp, current_timestamp)
     # used recently generated logs to update inner data structure
     for log in logs:
-      timestamp, uuid, source, dest, req_type, status, response_size = log.split()
+      timestamp, uuid, source, source_uuid, dest, req_type, status, response_size = log.split()
       self.content_set.add(uuid)
       if uuid not in self.access_map:
         self.access_map[uuid] = {}

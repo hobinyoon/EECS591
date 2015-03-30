@@ -14,7 +14,7 @@ from cache.ip_location_cache import ip_location_cache
 from aggregator import Aggregator
 
 SOURCE_INDEX =  2
-DESTINATION_INDEX = 3
+DESTINATION_INDEX = 4
 
 def run_simulation(request_log_file, enable_concurrency = True, request_map = None):
   # replaying request log

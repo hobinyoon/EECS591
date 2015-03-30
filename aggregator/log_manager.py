@@ -26,9 +26,9 @@ class LogManager:
   def add_log_entry(self, log_entry):
     log_columns = log_entry.split("\t")
     if len(log_columns) == 7:
-      self.cursor.execute('INSERT OR REPLACE INTO Log VALUES (?, ?, ?, ?, ?, ?, ?)',
+      self.cursor.execute('INSERT OR REPLACE INTO Log VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
                           (log_columns[0], log_columns[1], log_columns[2], log_columns[3],
-                           log_columns[4], log_columns[5], log_columns[6]))
+                           log_columns[4], log_columns[5], log_columns[6], log_columns[7]))
       self.conn.commit()
 
   # Adds multiple log entries into database
