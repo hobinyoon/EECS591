@@ -20,7 +20,8 @@ import ip_location_cache
 from log_manager import LogManager
 import util
 
-# Constants
+# Configurable Constants
+INTERDEPENDENCY_ITERATIONS = 5
 KAPPA = 0.5
 
 class Volley:
@@ -56,18 +57,20 @@ class Volley:
 
   # PHASE 2: Iteratively Move Data to Reduce Latency
   def reduce_latency(self, locations_by_uuid):
-    for uuid, location in locations_by_uuid.iteritems():
-      uuid_to_interdependencies = self.log_manager.get_interdependency_grouped_by_uuid(uuid)
 
-      for tuple in uuid_to_interdependencies:
-        other_item_uuid = tuple[0]
-        other_item_location = locations_by_uuid[other_item_uuid]
-        request_count = tuple[1]
-        distance = util.get_distance(location, other_item_location)
-        weight = 1 / (1 + (KAPPA * distance * request_count))
-        location = self.interp(weight, location, other_item_location)
+    for i in range(INTERDEPENDENCY_ITERATIONS):
+      for uuid, location in locations_by_uuid.iteritems():
+        uuid_to_interdependencies = self.log_manager.get_interdependency_grouped_by_uuid(uuid)
 
-      locations_by_uuid[uuid] = location
+        for tuple in uuid_to_interdependencies:
+          other_item_uuid = tuple[0]
+          other_item_location = locations_by_uuid[other_item_uuid]
+          request_count = tuple[1]
+          distance = util.get_distance(location, other_item_location)
+          weight = 1 / (1 + (KAPPA * distance * request_count))
+          location = self.interp(weight, location, other_item_location)
+
+        locations_by_uuid[uuid] = location
 
     return locations_by_uuid
 
