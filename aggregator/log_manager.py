@@ -82,6 +82,17 @@ class LogManager:
       servers.append(server_tuple[0])
     return servers
 
+  # Returns a count for unique uuids a uuid is interdependent with, and how many requests for each interdependent request are made
+  def get_interdependency_grouped_by_uuid(self, uuid):
+    self.cursor.execute(
+      "SELECT uuid, SUM(count) FROM (SELECT source_uuid AS uuid, COUNT(*) AS count FROM Log "
+      "WHERE uuid = ? AND source_uuid IS NOT null AND timestamp >= ? AND timestamp <= ? "
+      "GROUP BY source_uuid "
+      "UNION ALL SELECT uuid, COUNT(*) AS count FROM Log "
+      "WHERE source_uuid = ? AND timestamp >= ? AND timestamp <= ? GROUP BY uuid) "
+      "GROUP BY uuid", (uuid, self.start_time, self.end_time, uuid, self.start_time, self.end_time))
+    return self.cursor.fetchall()
+
   # Retrieve all distinct uuids.
   #
   # params:
