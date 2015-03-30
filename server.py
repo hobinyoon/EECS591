@@ -56,11 +56,11 @@ def write_file():
         file.save(file_path)
         metadata.update_file_stored(file_uuid, app.config['HOST'], get_file_size(file_path))
         host_address = app.config['simulation_ip'] if 'simulation_ip' in app.config else app.config['HOST']
-        logger.log(file_uuid, ip_address, '', host_address, 'WRITE', requests.codes.created, os.path.getsize(file_path))
+        logger.log(file_uuid, ip_address, 'null', host_address, 'WRITE', requests.codes.created, os.path.getsize(file_path))
         return file_uuid, requests.codes.created
     else:
         host_address = app.config['simulation_ip'] if 'simulation_ip' in app.config else app.config['HOST']
-        logger.log('NO_FILE', ip_address, '', host_address, 'WRITE', requests.codes.bad_request, -1)
+        logger.log('NO_FILE', ip_address, 'null', host_address, 'WRITE', requests.codes.bad_request, -1)
         return 'Write Failed', requests.codes.bad_request
 
 # Endpoint for read method
@@ -69,7 +69,7 @@ def read_file():
     ip_address = request.args.get('ip') if 'ip' in request.args else request.remote_addr
     metadata = getattr(g, 'metadata', None)
     delay_time = 0 if request.args.get('delay') is None else float(request.args.get('delay'))
-    source_uuid = request.args.get('source_uuid') if 'source_uuid' in request.args else ''
+    source_uuid = request.args.get('source_uuid') if 'source_uuid' in request.args else 'null'
     filename = request.args.get('uuid')
     host_address = app.config['simulation_ip'] if 'simulation_ip' in app.config else app.config['HOST']
 
@@ -89,7 +89,7 @@ def read_file():
     redirect_address = metadata.lookup_file(filename, app.config['HOST'])
     redirect_url = None
     redirect_args = { 'uuid': filename, 'ip': ip_address, 'delay': delay_time }
-    if source_uuid != '':
+    if source_uuid != 'null':
         redirect_args['source_uuid'] = source_uuid
     if (redirect_address is None):
         other_servers = metadata.get_all_server(app.config['HOST'])
@@ -296,7 +296,7 @@ def clone_file(file_uuid, destination, method, ip_address):
     if (write_request.status_code == requests.codes.created):
         metadata.update_file_stored(file_uuid, destination, get_file_size(file_path))
     host_address = app.config['simulation_ip'] if 'simulation_ip' in app.config else app.config['HOST']
-    logger.log(file_uuid, ip_address, '', host_address, method, write_request.status_code, os.path.getsize(file_path))
+    logger.log(file_uuid, ip_address, 'null', host_address, method, write_request.status_code, os.path.getsize(file_path))
     if (write_request.status_code == requests.codes.created):
         return 'Success', requests.codes.ok
     else:

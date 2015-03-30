@@ -25,7 +25,10 @@ class LogManager:
   #   log_entry: tab-separated column values for log
   def add_log_entry(self, log_entry):
     log_columns = log_entry.split("\t")
-    if len(log_columns) == 7:
+    if len(log_columns) == 8:
+      for i, col in enumerate(log_columns):
+        if col == 'null':
+          log_columns[i] = None
       self.cursor.execute('INSERT OR REPLACE INTO Log VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
                           (log_columns[0], log_columns[1], log_columns[2], log_columns[3],
                            log_columns[4], log_columns[5], log_columns[6], log_columns[7]))
