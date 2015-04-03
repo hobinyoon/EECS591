@@ -56,11 +56,11 @@ def write_file():
         file.save(file_path)
         metadata.update_file_stored(file_uuid, app.config['HOST'], get_file_size(file_path))
         host_address = app.config['simulation_ip'] if 'simulation_ip' in app.config else app.config['HOST']
-        logger.log(file_uuid, ip_address, host_address, 'WRITE', requests.codes.created, os.path.getsize(file_path))
+        logger.log(file_uuid, ip_address, 'null', host_address, 'WRITE', requests.codes.created, os.path.getsize(file_path))
         return file_uuid, requests.codes.created
     else:
         host_address = app.config['simulation_ip'] if 'simulation_ip' in app.config else app.config['HOST']
-        logger.log('NO_FILE', ip_address, host_address, 'WRITE', requests.codes.bad_request, -1)
+        logger.log('NO_FILE', ip_address, 'null', host_address, 'WRITE', requests.codes.bad_request, -1)
         return 'Write Failed', requests.codes.bad_request
 
 # Endpoint for read method
@@ -69,7 +69,9 @@ def read_file():
     ip_address = request.args.get('ip') if 'ip' in request.args else request.remote_addr
     metadata = getattr(g, 'metadata', None)
     delay_time = 0 if request.args.get('delay') is None else float(request.args.get('delay'))
+    source_uuid = request.args.get('source_uuid') if 'source_uuid' in request.args else 'null'
     filename = request.args.get('uuid')
+    host_address = app.config['simulation_ip'] if 'simulation_ip' in app.config else app.config['HOST']
 
     file_path = os.path.join(UPLOAD_FOLDER, secure_filename(filename))
     if (metadata.is_file_exist_locally(filename, app.config['HOST']) is not None):
@@ -80,13 +82,15 @@ def read_file():
             def remove_request(response):
                 metadata.remove_concurrent_request(filename, ip_address)
                 metadata.close()
-        host_address = app.config['simulation_ip'] if 'simulation_ip' in app.config else app.config['HOST']
-        logger.log(filename, ip_address, host_address, 'READ', requests.codes.ok, os.path.getsize(file_path))
+        logger.log(filename, ip_address, source_uuid, host_address, 'READ', requests.codes.ok, os.path.getsize(file_path))
         time.sleep(delay_time)
         return send_from_directory(UPLOAD_FOLDER, secure_filename(filename))
 
     redirect_address = metadata.lookup_file(filename, app.config['HOST'])
     redirect_url = None
+    redirect_args = { 'uuid': filename, 'ip': ip_address, 'delay': delay_time }
+    if source_uuid != 'null':
+        redirect_args['source_uuid'] = source_uuid
     if (redirect_address is None):
         other_servers = metadata.get_all_server(app.config['HOST'])
         if (len(other_servers) > 0):
@@ -94,21 +98,19 @@ def read_file():
                 url = 'http://%s/file_exists?%s' % (server, urllib.urlencode({ 'uuid': filename }))
                 lookup_request = requests.get(url)
                 if (lookup_request.status_code == requests.codes.ok):
-                    host_address = app.config['simulation_ip'] if 'simulation_ip' in app.config else app.config['HOST']
-                    redirect_url = 'http://%s/read?%s' % (server, urllib.urlencode({ 'uuid': filename, 'ip': ip_address }))
+                    redirect_url = 'http://%s/read?%s' % (server, urllib.urlencode(redirect_args))
 
                     # Update metadata - this might be a little inefficient right now, but want to avoid infinite redirects by
                     # using file_exists
                     update_metadata_from_another_server(server, filename)
     else:
-        redirect_url = 'http://%s/read?%s' % (redirect_address[0], urllib.urlencode({ 'uuid': filename, 'ip': ip_address }))
+        redirect_url = 'http://%s/read?%s' % (redirect_address[0], urllib.urlencode(redirect_args))
 
     if redirect_url is not None:
-        logger.log(filename, ip_address, host_address, 'READ', requests.codes.found, -1)
-        return redirect(url, code=requests.codes.found)
+        logger.log(filename, ip_address, source_uuid, host_address, 'READ', requests.codes.found, -1)
+        return redirect(redirect_url, code=requests.codes.found)
 
-    host_address = app.config['simulation_ip'] if 'simulation_ip' in app.config else app.config['HOST']
-    logger.log(filename, ip_address, host_address, 'READ', requests.codes.not_found, -1)
+    logger.log(filename, ip_address, source_uuid, host_address, 'READ', requests.codes.not_found, -1)
     return 'File Not Found', requests.codes.not_found
 
 @app.route('/file_exists', methods=['GET'])
@@ -304,7 +306,7 @@ def clone_file(file_uuid, destination, method, ip_address):
     if (write_request.status_code == requests.codes.created):
         metadata.update_file_stored(file_uuid, destination, get_file_size(file_path))
     host_address = app.config['simulation_ip'] if 'simulation_ip' in app.config else app.config['HOST']
-    logger.log(file_uuid, ip_address, host_address, method, write_request.status_code, os.path.getsize(file_path))
+    logger.log(file_uuid, ip_address, 'null', host_address, method, write_request.status_code, os.path.getsize(file_path))
     if (write_request.status_code == requests.codes.created):
         return 'Success', requests.codes.ok
     else:

@@ -1,11 +1,14 @@
 # This file implement simplified greedy replication algorithm.
 # Python import
 import random
+import os
+import sys
 import time
 
 # Project imports
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), 'aggregator'))
 import util
-from aggregator.aggregator import Aggregator
+from aggregator import Aggregator
 
 class GreedyReplication:
 
@@ -44,9 +47,10 @@ class GreedyReplication:
     logs = self.aggregator.get_log_entries(self.last_timestamp, current_timestamp)
     # used recently generated logs to update access_map
     for log in logs:
-      timestamp, uuid, source, dest, req_type, status, response_size = log
+      timestamp, uuid, source, source_uuid, dest, req_type, status, response_size = log.split()
       if uuid not in content_set:
         continue
+      self.content_set.add(uuid)
       if uuid not in self.access_map:
         self.access_map[uuid] = {}
       self.client_set.add(source)

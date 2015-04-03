@@ -66,7 +66,8 @@ def convert_to_simulation_ip(local_ip):
     result = local_ip
     with open(SERVER_LIST_FILE, 'rb') as server_file, open(SIMULATION_IP_FILE, 'rb') as simulation_ip_file:
         for line in server_file:
-            simulation_ip = simulation_ip_file.next()
+            line = line.strip()
+            simulation_ip = simulation_ip_file.next().strip()
             if line == local_ip:
                 result = simulation_ip
                 break
@@ -82,7 +83,8 @@ def convert_to_local_hostname(simulation_ip):
     result = simulation_ip
     with open(SERVER_LIST_FILE, 'rb') as server_file, open(SIMULATION_IP_FILE, 'rb') as simulation_ip_file:
         for line in simulation_ip_file:
-            local_ip = server_file.next()
+            line = line.strip()
+            local_ip = server_file.next().strip()
             if line == simulation_ip:
                 result = local_ip
                 break

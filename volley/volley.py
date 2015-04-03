@@ -1,6 +1,6 @@
 # Implementation of Volley
-
 import geopy
+import json
 import math
 import os
 import requests
@@ -15,53 +15,25 @@ from geopy.distance import great_circle
 up_one_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..')
 sys.path.insert(0, up_one_dir)
 sys.path.insert(0, os.path.join(up_one_dir, 'cache'))
+sys.path.insert(0, os.path.join(up_one_dir, 'aggregator'))
 import ip_location_cache
+from log_manager import LogManager
 import util
 
-# Config
-LOG_DATABASE = os.path.join(up_one_dir, 'aggregator/aggregated_logs.db')
-
-def convert_server_to_test_server(server):
-  # hardcode AWS servers for simulation
-  if server == '54.175.68.60':
-    server = 'localhost:5000'
-  elif server == '54.65.80.55':
-    server = 'localhost:5001'
-  elif server == '54.93.104.58':
-    server = 'localhost:5002'
-  elif server == '54.207.24.208':
-    server = 'localhost:5003'
-  elif server == '54.69.237.99':
-    server = 'localhost:5004'
-  return server
+# Configurable Constants
+INTERDEPENDENCY_ITERATIONS = 5
+KAPPA = 0.5
 
 class Volley:
 
   def __init__(self, start_time = 0, end_time = int(time.time())):
-    self.log_conn = sqlite3.connect(LOG_DATABASE)
-    self.log_cursor = self.log_conn.cursor()
+    self.log_manager = LogManager(start_time, end_time)
     self.ip_cache = ip_location_cache.ip_location_cache()
 
-    # timestamps for start/end point for logs
-    self.start_time = int(start_time)
-    self.end_time = int(end_time)
-
     # for now, get from logs. maybe use aggregator to make these calls later?
-    self.log_cursor.execute('SELECT DISTINCT destination_entity FROM Log WHERE request_type = "READ" AND timestamp >= ? AND timestamp <= ?', (self.start_time, self.end_time))
-    server_tuples = self.log_cursor.fetchall()
-
-    self.servers = []
-    for server_tuple in server_tuples:
-        self.servers.append(server_tuple[0])
-    print self.servers
-    # self.servers = util.retrieve_server_list()
+    self.servers = self.log_manager.get_unique_destinations()
 
     self.uuid_metadata = {}     # dictionary mapping uuid -> metadata (includes state-ful data)
-
-
-  # Closes the connection to the database
-  def close_connection(self):
-    self.log_conn.close()
 
   # Execute Volley algorithm
   def execute(self):
@@ -74,20 +46,32 @@ class Volley:
   # PHASE 1: Compute Initial Placement
   def place_initial(self):
     # should use aggregator to make these calls later
-    self.log_cursor.execute('SELECT DISTINCT uuid FROM Log WHERE request_type = "READ" AND timestamp >= ? AND timestamp <= ? AND status = 200', (self.start_time, self.end_time))
-    uuid_tuples = self.log_cursor.fetchall()
+    uuids = self.log_manager.get_unique_uuids()
 
     locations_by_uuid = {}
 
-    for uuid_tuple in uuid_tuples:
-      uuid = uuid_tuple[0]
+    for uuid in uuids:
       locations_by_uuid[uuid] = self.weighted_spherical_mean(uuid)
 
     return locations_by_uuid
 
   # PHASE 2: Iteratively Move Data to Reduce Latency
   def reduce_latency(self, locations_by_uuid):
-    # TODO: need to have a dataset where data items reference each other
+
+    for i in range(INTERDEPENDENCY_ITERATIONS):
+      for uuid, location in locations_by_uuid.iteritems():
+        uuid_to_interdependencies = self.log_manager.get_interdependency_grouped_by_uuid(uuid)
+
+        for tuple in uuid_to_interdependencies:
+          other_item_uuid = tuple[0]
+          other_item_location = locations_by_uuid[other_item_uuid]
+          request_count = tuple[1]
+          distance = util.get_distance(location, other_item_location)
+          weight = 1 / (1 + (KAPPA * distance * request_count))
+          location = self.interp(weight, location, other_item_location)
+
+        locations_by_uuid[uuid] = location
+
     return locations_by_uuid
 
   # PHASE 3: Iteratively Collapse Data to Datacenters
@@ -101,20 +85,16 @@ class Volley:
       metadata = {'current_server': None, 'optimal_location': location, 'uuid': uuid, 'dist': None, 'file_size': None, 'request_count': None}
       best_server = None
 
-      # should use aggregator to make these calls later
-      self.log_cursor.execute('SELECT destination_entity, response_size FROM Log WHERE request_type = "READ" AND uuid = ? AND status = 200 AND timestamp >= ? and timestamp <= ?', (uuid, self.start_time, self.end_time))
-      metadata_result = self.log_cursor.fetchone()
-      if metadata_result is None:
-        raise Exception('Current server location and file size could not be found for uuid: ' + uuid)
-      metadata['current_server'] = metadata_result[0]
-      metadata['file_size'] = metadata_result[1]
-
-      # should use aggregator to make these calls later
-      self.log_cursor.execute('SELECT count(*) FROM Log WHERE request_type = "READ" AND status = 200 AND uuid = ? AND timestamp >= ? AND timestamp <= ?', (uuid, self.start_time, self.end_time))
-      request_count_result = self.log_cursor.fetchone()
-      if request_count_result is None:
-        raise Exception('Number of requests could not be found for uuid: ' + uuid)
-      metadata['request_count'] = request_count_result[0]
+      # Query any server for metadata - server will update and get information 
+      any_server = util.convert_to_local_hostname(self.servers[0])
+      url = 'http://%s/metadata?%s' % (any_server, urllib.urlencode({ 'uuid': uuid }))
+      print url
+      r = requests.get(url)
+      print r.text
+      response = json.loads(r.text)
+      metadata['current_server'] = response['server']
+      metadata['file_size'] = response['file_size']
+      metadata['request_count'] = self.log_manager.successful_read_count(uuid)
 
       best_servers = self.find_closest_servers(location)
       best_server = best_servers[0]
@@ -133,9 +113,9 @@ class Volley:
       for uuid in uuids:
         current_server = self.uuid_metadata[uuid]['current_server']
 
-        # only run these for simulation
-        current_server = convert_server_to_test_server(current_server)
-        optimal_server = convert_server_to_test_server(optimal_server)
+        # conver to local hostname in case of simulation
+        current_server = util.convert_to_local_hostname(current_server)
+        optimal_server = util.convert_to_local_hostname(optimal_server)
 
         if current_server != optimal_server:
           url = 'http://%s/transfer?%s' % (current_server, urllib.urlencode({ 'uuid': uuid, 'destination': optimal_server }))
@@ -187,7 +167,7 @@ class Volley:
   # params:
   #   server: hostname of server to check
   def total_server_capacity(self, server):
-    server = convert_server_to_test_server(server)
+    server = util.convert_to_local_hostname(server)
 
     url = 'http://%s/capacity?%s' % (server, urllib.urlencode({ 'file_size': 0 }))
     r = requests.get(url, timeout=30)
@@ -356,10 +336,7 @@ class Volley:
   # params:
   #   uuid: uuid of the data item
   def weighted_spherical_mean(self, uuid):
-    # Find results for each source entity
-    self.log_cursor.execute('SELECT source_entity, COUNT(source_entity) AS weight FROM Log '
-      'WHERE uuid = ? AND request_type = "READ" AND status = 200 AND timestamp >= ? AND timestamp <= ? GROUP BY source_entity', (uuid, self.start_time, self.end_time))
-    request_logs = self.log_cursor.fetchall()
+    request_logs = self.log_manager.get_reads_grouped_by_source(uuid)
     if len(request_logs) == 0:
       return None
 
@@ -377,5 +354,11 @@ class Volley:
     return self.weighted_spherical_mean_helper(total_weight, weights, locations)
 
 if __name__ == '__main__':
-  volley = Volley(1427118863, 1427118940)
+  if (len(sys.argv) < 3):
+    print 'Usage: python volley.py 1426809600 1427395218'
+    print 'Integers are Unix timestamps for start and end times to retrieve log data'
+    exit(1)
+  start_time = sys.argv[1]
+  end_time = sys.argv[2]
+  volley = Volley(start_time, end_time)
   volley.execute()
