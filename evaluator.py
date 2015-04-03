@@ -16,14 +16,14 @@ class Evaluator:
   def evaluate(self):
     # collect server logs
     logs = self.aggregator.get_log_entries(self.start_time, self.end_time)
-    timestamp, uuid, source, source_uuid, dest, req_type, status, response_size = log.split()
+    timestamp, uuid, source, source_uuid, dest, req_type, status, response_size = log
     # calculate the average latency
     latency_sum = 0
     request_count = 0
     inter_datacenter_traffic = 0
     ip_cache = ip_location_cache()
     for log in logs:
-      if req_type == 'read' and status != '302':
+      if req_type == 'read':
         client_loc = ip_cache.get_lat_lon_from_ip(source)
         server_loc = ip_cache.get_lat_lon_from_ip(dest)
         distance = util.get_distance(client_loc, server_loc)
