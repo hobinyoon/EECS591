@@ -35,7 +35,8 @@ def generate_dataset(filename, user_ip_map, uuid_server_map):
             first_user_ip = user_ip_map[first_uid]
             second_uid = line_splitted[1]
             second_user_ip = user_ip_map[second_uid]
-            target_server = uuid_server_map[first_uid]
+            first_target_server = uuid_server_map[first_uid]
+            second_target_server = uuid_server_map[second_uid]
             tweet_uid = str(uuid.uuid4())
             # Schema: [timestamp]\t[target_uuid]\t[src]\t[source_dependency]\t[dest]\t[type]\t[status]\t[size]
             if mode == TWITTER_MT:
@@ -43,16 +44,16 @@ def generate_dataset(filename, user_ip_map, uuid_server_map):
                 #   1) A reads A's timeline
                 #   2) A writes to his own timeline
                 #   3) A reads his own timeline
-                access_timeline(timestamp, first_uid, first_user_ip, target_server, result_file, user_timeline_map, tweet_server, reply_stream_map)
-                result_file.write('%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % (timestamp, first_uid, first_user_ip, 'null', target_server, 'READ', '2800'))
-                result_file.write('%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % (timestamp, tweet_uid, first_user_ip, 'null', target_server, 'WRITE', '0'))
-                tweet_server[tweet_uid] = target_server  # must be here, because this is were the tweet is already stored on the server.
+                access_timeline(timestamp, first_uid, first_user_ip, first_target_server, result_file, user_timeline_map, tweet_server, reply_stream_map)
+                result_file.write('%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % (timestamp, first_uid, first_user_ip, 'null', first_target_server, 'READ', '2800'))
+                result_file.write('%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % (timestamp, tweet_uid, first_user_ip, 'null', first_target_server, 'WRITE', '0'))
+                tweet_server[tweet_uid] = first_target_server  # must be here, because this is were the tweet is already stored on the server.
                 if first_uid not in user_timeline_map:  # add the tweet to the timeline
                     user_timeline_map[first_uid] = []
                 elif len(user_timeline_map[first_uid]) > TIMELINE_LIMIT:
                     user_timeline_map[first_uid].pop(0)  # remove the first element
                 user_timeline_map[first_uid].append(tweet_uid)
-                access_timeline(timestamp, first_uid, first_user_ip, target_server, result_file, user_timeline_map, tweet_server, reply_stream_map)
+                access_timeline(timestamp, first_uid, first_user_ip, first_target_server, result_file, user_timeline_map, tweet_server, reply_stream_map)
 
             elif mode == TWITTER_RT or mode == TWITTER_RE:
                 # Five steps: assuming A is the sender of the tweet and B is the recipient of the tweet.
@@ -61,10 +62,10 @@ def generate_dataset(filename, user_ip_map, uuid_server_map):
                 #   3) A writes the tweet to A's timeline
                 #   4) A reads B's timeline (as an effect of retweeting and replying)
                 #   5) A reads A's timeline
-                access_timeline(timestamp, second_uid, first_user_ip, target_server, result_file, user_timeline_map, tweet_server, reply_stream_map)
-                access_timeline(timestamp, first_uid, first_user_ip, target_server, result_file, user_timeline_map, tweet_server, reply_stream_map)
-                result_file.write('%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % (timestamp, tweet_uid, first_user_ip, 'null', target_server, 'WRITE', '0'))
-                tweet_server[tweet_uid] = target_server  # must be here, because this is were the tweet is already stored on the server.
+                access_timeline(timestamp, second_uid, first_user_ip, second_target_server, result_file, user_timeline_map, tweet_server, reply_stream_map)
+                access_timeline(timestamp, first_uid, first_user_ip, first_target_server, result_file, user_timeline_map, tweet_server, reply_stream_map)
+                result_file.write('%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % (timestamp, tweet_uid, first_user_ip, 'null', first_target_server, 'WRITE', '0'))
+                tweet_server[tweet_uid] = first_target_server  # must be here, because this is were the tweet is already stored on the server.
                 if first_uid not in user_timeline_map:  # add the tweet to the timeline
                     user_timeline_map[first_uid] = []
                 elif len(user_timeline_map[first_uid]) > TIMELINE_LIMIT:
@@ -73,8 +74,8 @@ def generate_dataset(filename, user_ip_map, uuid_server_map):
                 if mode == TWITTER_RE:
                     reply_stream_map[tweet_uid] = second_uid # the tweet is directed to the second_uid
 
-                result_file.write('%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % (timestamp, second_uid, first_user_ip, tweet_uid, target_server, 'READ', str(TWEET_SIZE)))
-                access_timeline(timestamp, first_uid, first_user_ip, target_server, result_file, user_timeline_map, tweet_server, reply_stream_map)
+                result_file.write('%s\t%s\t%s\t%s\t%s\t%s\t%s\n' % (timestamp, second_uid, first_user_ip, tweet_uid, second_target_server, 'READ', str(TWEET_SIZE)))
+                access_timeline(timestamp, first_uid, first_user_ip, first_target_server, result_file, user_timeline_map, tweet_server, reply_stream_map)
             uuid_file.write('%s\n' % tweet_uid)
 
 # Helper method for populating log entries for reading from a timeline
