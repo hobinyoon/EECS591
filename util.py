@@ -99,8 +99,8 @@ def find_closest_servers_with_ip(ip_addr, servers):
     servers_to_search = servers
     best_servers = []
     for server in servers_to_search:
-        server = convert_to_simulation_ip(server)
         server_dict = { 'server': server, 'distance': None }
+        server = convert_to_simulation_ip(server)
         item_location = ip_cache.get_lat_lon_from_ip(ip_addr)
         server_lat_lon = ip_cache.get_lat_lon_from_ip(server)
         if server_lat_lon is None:
@@ -138,3 +138,11 @@ def construct_post_request(url, uuid):
     files = {'file': open(uuid, 'rb')}
     request = requests.post(url, files)
     return request
+
+def get_file_list_on_server(server):
+    url = 'http://%s/local_file_list' % (server,)
+    request = requests.get(url)
+    file_list = request.text.split('\n')
+    # debug
+    print file_list
+    return file_list

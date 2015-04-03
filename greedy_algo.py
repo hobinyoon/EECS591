@@ -7,20 +7,6 @@ import time
 import util
 from aggregator.aggregator import Aggregator
 
-def convert_server_to_test_server(server):
-  # hardcode AWS servers for simulation
-  if server == '54.175.68.60':
-    server = 'localhost:5000'
-  elif server == '54.65.80.55':
-    server = 'localhost:5001'
-  elif server == '54.93.104.58':
-    server = 'localhost:5002'
-  elif server == '54.207.24.208':
-    server = 'localhost:5003'
-  elif server == '54.69.237.99':
-    server = 'localhost:5004'
-  return server
-
 class GreedyReplication:
 
   def __init__(self):
@@ -39,45 +25,35 @@ class GreedyReplication:
   # and replication status
   # call this function before running greedy algorithm
   def update(self):
+    # clear data
+    content_set = set([])
+    access_map = {}
+    replica_map = {}
+    # update content_set, replica_map
+    for server in self.server_list:
+      file_list = get_file_list_on_server(server)
+      for file_uuid in file_list:
+        content_set.add(file_uuid)
+        if file_uuid not in replica_map:
+          replica_map[file_uuid] = {}
+        if server not in replica_map[file_uuid]:
+          replica_map[file_uuid][server] = 0
+        replica_map[file_uuid][server] += 1
+
     current_timestamp = int(time.time())
     logs = self.aggregator.get_log_entries(self.last_timestamp, current_timestamp)
-    # used recently generated logs to update inner data structure
+    # used recently generated logs to update access_map
     for log in logs:
-      print '-----------------log---------------'
-      print log 
       timestamp, uuid, source, dest, req_type, status, response_size = log
-      self.content_set.add(uuid)
+      if uuid not in content_set:
+        continue
       if uuid not in self.access_map:
         self.access_map[uuid] = {}
-      if uuid not in self.replica_map:
-        self.replica_map[uuid] = {}
       self.client_set.add(source)
-      if req_type == 'WRITE':
-        if dest not in self.replica_map[uuid]:
-          self.replica_map[uuid][dest] = 1
-        else:
-          # usually we don't write file more than once on a server
-          self.replica_map[uuid][dest] += 1
-      elif req_type == 'READ' and status != '302':
+      if req_type == 'READ' and status != '302':
         if source not in self.access_map[uuid]:
-          self.access_map[uuid][source] = 1
-        else:
-          self.access_map[uuid][source] += 1
-      elif req_type == 'TRANSFER':
-        if dest not in self.replica_map[uuid]:
-          self.replica_map[uuid][dest] = 1
-        else:
-          # usually we don't write file more than once on a server
-          self.replica_map[uuid][dest] += 1
-        self.replica_map[uuid][source] = 0
-      elif req_type == 'DELETE':
-        self.replica_map[uuid][source] = 0
-      elif req_type == 'REPLICATE':
-        if dest not in self.replica_map[uuid]:
-          self.replica_map[uuid][dest] = 1
-        else:
-          # usually we don't write file more than once on a server
-          self.replica_map[uuid][dest] += 1
+          self.access_map[uuid][source] = 0
+        self.access_map[uuid][source] += 1
     self.last_timestamp = current_timestamp
 
   def run_replication(self):
@@ -98,14 +74,14 @@ class GreedyReplication:
     for c in self.content_set:
       if c in self.access_map:
         for a in self.access_map[c].keys():
-          print "content: " + c + " access: " + a
           # add a small amount of requests for content c from client a
           self.access_map[c][a] += delta
           # test whether current replicas can handle that much request
           is_enough = self.enough_replica()
           # back tracking,
           self.access_map[c][a] -= delta
-          return is_enough
+          if not is_enough:
+            return False
     return True
 
   def add_replica(self, request_delta, replica_delta):
@@ -162,18 +138,8 @@ class GreedyReplication:
     # this is an approximate implementation, may need to
     # construct a bipartite graph and run min matching algo
     for c in self.content_set:
-      server_to_request_sum_map = {}
-      for a in self.access_map[c].keys():
-        nearest_server = convert_server_to_test_server(util.find_closest_servers_with_ip(a, self.server_set)[0]['server'])
-        # print "nearest server: " + nearest_server
-        if nearest_server not in server_to_request_sum_map:
-          server_to_request_sum_map[nearest_server] = 0 
-        server_to_request_sum_map[nearest_server] += self.access_map[c][a]
-      for server, request_sum in server_to_request_sum_map.iteritems():
-        if (c not in self.replica_map) or (server not in self.replica_map[c]):
-          return False
-        if self.replica_map[c][server] * self.requests_per_replica < request_sum:
-          return False
+      if not self.enough_replica_for_content(c):
+        return False
     return True
   
   def enough_replica_for_content(self, c):
