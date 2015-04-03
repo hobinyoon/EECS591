@@ -33,7 +33,7 @@ class GreedyReplication:
     access_map = {}
     replica_map = {}
     # update content_set, replica_map
-    for server in self.server_list:
+    for server in self.server_set:
       file_list = get_file_list_on_server(server)
       for file_uuid in file_list:
         content_set.add(file_uuid)
@@ -47,14 +47,14 @@ class GreedyReplication:
     logs = self.aggregator.get_log_entries(self.last_timestamp, current_timestamp)
     # used recently generated logs to update access_map
     for log in logs:
-      timestamp, uuid, source, source_uuid, dest, req_type, status, response_size = log.split()
+      timestamp, uuid, source, source_uuid, dest, req_type, status, response_size = log
       if uuid not in content_set:
         continue
       self.content_set.add(uuid)
       if uuid not in self.access_map:
         self.access_map[uuid] = {}
       self.client_set.add(source)
-      if req_type == 'READ' and status != '302':
+      if req_type == 'READ':
         if source not in self.access_map[uuid]:
           self.access_map[uuid][source] = 0
         self.access_map[uuid][source] += 1
@@ -130,9 +130,9 @@ class GreedyReplication:
       print 'replicate to all servers'
       for content in self.content_set:
         if not self.enough_replica_for_content(content):
-          if content not in self.uuid_to_server:
+          if content not in self.replica_map:
             continue
-          source = self.uuid_to_server[content]
+          source = self.replica_map[content].itervalues().next()
           #select first none zero replica
           for server in self.server_set:
             print "replicate " + "content: " + content + " from: " + source + " to " + server

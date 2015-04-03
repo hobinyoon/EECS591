@@ -73,7 +73,7 @@ class MetadataManager:
         return retval
 
     def get_file_list_on_server(self, server):
-        self.cursor.execute('SELECT DISTINCE uuid FROM FileMap WHERE server == ?',
+        self.cursor.execute('SELECT DISTINCT uuid FROM FileMap WHERE server == ?',
             (server,))
         return self.cursor.fetchall()
 
