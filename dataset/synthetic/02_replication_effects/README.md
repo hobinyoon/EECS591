@@ -19,5 +19,3 @@ The dataset contains two users, three servers, and one data. The two users are l
 * _Left server:_ 42.391009, -84.726563
 * _Center server:_ 35.853440, 9.140625
 * _Right server:_ 27.488781, 78.046875
-
-
