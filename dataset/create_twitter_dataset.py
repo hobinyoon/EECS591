@@ -76,7 +76,7 @@ def generate_dataset(filename, user_ip_map, uuid_server_map, rt_re_set):
                 if mode == TWITTER_RE:
                     reply_stream_map[tweet_uid] = second_uid # the tweet is directed to the second_uid
 
-                result_file.write(LOG_FORMAT % (timestamp, second_uid, first_user_ip, tweet_uid, second_target_server, 'READ', '200', str(TWEET_SIZE)))
+                result_file.write(LOG_FORMAT % (timestamp, second_uid, first_target_server, tweet_uid, second_target_server, 'READ', '200', str(TWEET_SIZE)))
                 access_timeline(timestamp, first_uid, first_user_ip, first_target_server, result_file, user_timeline_map, tweet_server, reply_stream_map)
             uuid_file.write('%s\n' % tweet_uid)
 
@@ -94,7 +94,7 @@ def generate_dataset(filename, user_ip_map, uuid_server_map, rt_re_set):
 def access_timeline(timestamp, timeline_uuid, source, target_server, result_file, user_timeline_map, tweet_server, reply_stream_map):
     # Read source's timeline.
     timeline_list = [] if timeline_uuid not in user_timeline_map else user_timeline_map[timeline_uuid] # get the list containing the uuid of the tweets for that timeline
-    read_size = TWEET_SIZE * len(timeline_list) if len(timeline_list) > 0 else TWEET_SIZE
+    read_size = TWEET_SIZE * len(timeline_list)
     result_file.write(LOG_FORMAT % (timestamp, timeline_uuid, source, 'null', target_server, 'READ', '200', str(read_size)))
     # Read each tweet from the server.
     for tweet in timeline_list:
@@ -102,7 +102,7 @@ def access_timeline(timestamp, timeline_uuid, source, target_server, result_file
         result_file.write(LOG_FORMAT % (timestamp, tweet, source, timeline_uuid, read_target_server, 'READ', '200', str(TWEET_SIZE)))
         if tweet in reply_stream_map:  # read the timeline where the origin of this reply tweet resides
             target_timeline = reply_stream_map[tweet]
-            result_file.write(LOG_FORMAT % (timestamp, target_timeline, source, timeline_uuid, read_target_server, 'READ', '200', str(TWEET_SIZE)))
+            result_file.write(LOG_FORMAT % (timestamp, target_timeline, target_server, timeline_uuid, read_target_server, 'READ', '200', str(TWEET_SIZE)))
 
 # Generates the user to ip address map
 # Also output to a file called 'user_ip_map.txt'
