@@ -1,4 +1,4 @@
-# Sythetic Dataset #3
+# Synthetic Dataset #3
 
 ## Goal
 
