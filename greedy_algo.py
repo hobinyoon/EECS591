@@ -27,7 +27,7 @@ class GreedyReplication:
   # call this function before running greedy algorithm
   def update(self):
     current_timestamp = int(time.time())
-    logs = self.aggregator.get_log_entries(last_timestamp, current_timestamp)
+    logs = self.aggregator.get_read_log_entries(last_timestamp, current_timestamp)
     # used recently generated logs to update inner data structure
     for log in logs:
       timestamp, uuid, source, source_uuid, dest, req_type, status, response_size = log.split()

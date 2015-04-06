@@ -52,11 +52,6 @@ class LogManager:
       return None
     return result[0]
 
-  # DEPRECATED
-  def get_log_entries(self):
-    print 'WARNING: LogManager.get_log_entries() is DEPRECATED! Please use LogManager.get_reads() instead.'
-    self.get_reads(self.start_time, self.end_time)
-
   # Retrieve successful log read entries in a specified time period
   def get_reads(self, start_timestamp = None, end_timestamp = None):
     if start_timestamp == None:
@@ -64,6 +59,15 @@ class LogManager:
     if end_timestamp == None:
       end_timestamp = self.end_time if self.end_time is not None else int(time.time())
     self.cursor.execute('SELECT * FROM Log WHERE request_type = \'READ\' AND status = 200 AND timestamp >= ? AND timestamp <= ?', (self.start_time, self.end_time))
+    return self.cursor.fetchall()
+  
+  # Retrieve successful log file moving entries in a specified time period
+  def get_file_movings(self, start_timestamp = None, end_timestamp = None):
+    if start_timestamp == None:
+      start_timestamp = self.start_time if self.start_time is not None else 0
+    if end_timestamp == None:
+      end_timestamp = self.end_time if self.end_time is not None else int(time.time())
+    self.cursor.execute('SELECT * FROM Log WHERE (request_type = \'TRANSFER\' OR request_type = \'REPLICATE\' OR request_type = \'DISTRIBUTED_REPLICATE\') AND status = 200 AND timestamp >= ? AND timestamp <= ?', (self.start_time, self.end_time))
     return self.cursor.fetchall()
 
   # Retrieve successful log read entries, grouped by source_entity
