@@ -48,7 +48,6 @@ def generate_dataset(filename, user_ip_map, uuid_server_map, rt_re_set):
                     #   2) A writes to his own timeline
                     #   3) A reads his own timeline
                     access_timeline(timestamp, first_uid, first_user_ip, first_target_server, result_file, user_timeline_map, tweet_server, reply_stream_map)
-                    result_file.write(LOG_FORMAT % (timestamp, first_uid, first_user_ip, 'null', first_target_server, 'READ', '200', '2800'))
                     result_file.write(LOG_FORMAT % (timestamp, tweet_uid, first_user_ip, 'null', first_target_server, 'WRITE', '201', '0'))
                     tweet_server[tweet_uid] = first_target_server  # must be here, because this is were the tweet is already stored on the server.
                     if first_uid not in user_timeline_map:  # add the tweet to the timeline
