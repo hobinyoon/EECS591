@@ -9,9 +9,12 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), 'ag
 class Evaluator:
 
   def init(self, start_time, end_time):
+    self.set_time(start_time, end_time)
+    self.aggregator = Aggregator()
+
+  def set_time(start_time, end_time):
     self.start_time = start_time
     self.end_time = end_time
-    self.aggregator = Aggregator()
 
   def evaluate(self):
     # collect server logs

@@ -61,8 +61,8 @@ class LogManager:
     self.cursor.execute('SELECT * FROM Log WHERE request_type = \'READ\' AND status = 200 AND timestamp >= ? AND timestamp <= ?', (self.start_time, self.end_time))
     return self.cursor.fetchall()
   
-  # Retrieve successful log file moving entries in a specified time period
-  def get_file_movings(self, start_timestamp = None, end_timestamp = None):
+  # Retrieve successful log on file movement in a specified time period
+  def get_movings(self, start_timestamp = None, end_timestamp = None):
     if start_timestamp == None:
       start_timestamp = self.start_time if self.start_time is not None else 0
     if end_timestamp == None:
