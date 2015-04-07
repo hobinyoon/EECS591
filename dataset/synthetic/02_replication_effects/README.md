@@ -6,7 +6,7 @@ The goal of this synthetic dataset is to demonstrate that replication can also r
 
 ## Dataset Details:
 
-The dataset contains two users, three servers, and one data. The two users are located on the opposite side of the world e.g. one in California and another one in China. The three servers are located in between the two users where one server is approximately in the middle between two users and the other two are close to the first and the second user respectively. The data is uploaded by the first user to the server closest to him.
+The dataset contains ten users, three servers. The two group of users are located on the opposite side of the world e.g. one in California and another one in China. The three servers are located in between the two groups of users where one server is approximately in the middle between two groups of users and the other two are close to the first and the second group respectively. The data is uploaded by the first user to the server closest to him.
 
 ### List of users:
 
