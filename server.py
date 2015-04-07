@@ -104,10 +104,11 @@ def read_file():
                     # using file_exists
                     update_metadata_from_another_server(server, filename)
     else:
-        redirect_url = 'http://%s/read?%s' % (redirect_address[0], urllib.urlencode(redirect_args))
+        redirect_url = 'http://%s/read?%s' % (redirect_address, urllib.urlencode(redirect_args))
 
     if redirect_url is not None:
         logger.log(filename, ip_address, source_uuid, host_address, 'READ', requests.codes.found, -1)
+        print 'Redirecting to: ' + redirect_url
         return redirect(redirect_url, code=requests.codes.found)
 
     logger.log(filename, ip_address, source_uuid, host_address, 'READ', requests.codes.not_found, -1)
