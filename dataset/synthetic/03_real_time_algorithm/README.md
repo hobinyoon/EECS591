@@ -6,7 +6,7 @@ We want to demostrate the effect of how the distributed algorithm can deal with 
 
 ## Dataset Details
 
-The first entry corresponds to the upload of the file from user 1 to his closest server, `4.4.4.1`. Then, 10 users access the same item at timestamp 2. There two groups of users and each group of users have a corresponding server. The reads happening at timestamp 2 should trigger the replication in the distributed algorithm. The set of access at timestamp 3 is for lowering the latency of the data.
+The first entry corresponds to the upload of the file from user 1 to his closest server, `4.4.4.1`. Then, 10 users access the same item at timestamp 2. There two groups of users and each group of users have a corresponding server. The reads happening at timestamp 2 should trigger the replication in the distributed algorithm. The access after timestamp 2 should achieve in lower latency.
 
 _Assumption_: we assume that the centralized algorithms are not being executed until the end of the data. This is to demonstrate that the centralized algorithm cannot capture the change in workload.
 
