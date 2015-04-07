@@ -5,9 +5,9 @@ import os
 import operator
 import sys
 import util
-
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), 'cache'))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), 'volley'))
+from ip_location_cache import ip_location_cache
 from volley import Volley
 from greedy_algo import GreedyReplication
 from aggregator import Aggregator
