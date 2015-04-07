@@ -38,7 +38,7 @@ class ip_location_cache:
 
     # Add an entry to the cache.
     def add_entry_to_cache(self, ip, lat, lon, city, region, country):
-        self.cursor.execute('INSERT INTO IpLocationMap VALUES (?, ?, ?, ?, ?, ?)', (ip, lat, lon, city, region, country))
+        self.cursor.execute('INSERT OR REPLACE INTO IpLocationMap VALUES (?, ?, ?, ?, ?, ?)', (ip, lat, lon, city, region, country))
         self.conn.commit()
 
     # Returns the (lat, lon) information of the ip address.
