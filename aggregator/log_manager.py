@@ -67,7 +67,7 @@ class LogManager:
       start_timestamp = self.start_time if self.start_time is not None else 0
     if end_timestamp == None:
       end_timestamp = self.end_time if self.end_time is not None else int(time.time())
-    self.cursor.execute('SELECT * FROM Log WHERE (request_type = \'TRANSFER\' OR request_type = \'REPLICATE\' OR request_type = \'DISTRIBUTED_REPLICATE\') AND status = 200 AND timestamp >= ? AND timestamp <= ?', (self.start_time, self.end_time))
+    self.cursor.execute('SELECT * FROM Log WHERE (request_type = \'TRANSFER\' OR request_type = \'REPLICATE\' OR request_type = \'DISTRIBUTED_REPLICATE\') AND status = 200 AND timestamp >= ? AND timestamp <= ?', (start_timestamp, end_timestamp))
     return self.cursor.fetchall()
 
   # Retrieve successful log read entries, grouped by source_entity
