@@ -59,11 +59,11 @@ class LogManager:
 
   # Retrieve successful log read entries in a specified time period
   def get_reads(self, start_timestamp = None, end_timestamp = None):
-    if start_timestamp == None:
+    if start_timestamp is None:
       start_timestamp = self.start_time if self.start_time is not None else 0
-    if end_timestamp == None:
+    if end_timestamp is None:
       end_timestamp = self.end_time if self.end_time is not None else int(time.time())
-    self.cursor.execute('SELECT * FROM Log WHERE request_type = \'READ\' AND status = 200 AND timestamp >= ? AND timestamp <= ?', (self.start_time, self.end_time))
+    self.cursor.execute('SELECT * FROM Log WHERE request_type = \'READ\' AND status = 200 AND timestamp >= ? AND timestamp <= ? ORDER BY timestamp ASC', (start_timestamp, end_timestamp))
     return self.cursor.fetchall()
 
   # Retrieve successful log read entries, grouped by source_entity
