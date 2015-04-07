@@ -27,6 +27,8 @@ if __name__ == '__main__':
   print '********************** Test Evaluator ************************'
   evaluator = Evaluator(111111, 222222)
   avg_latency, traffic = evaluator.evaluate(read_logs, moving_logs)
+  assert (avg_latency > 10 and avg_latency < 11), 'Wrong latency'
+  assert traffic == 3, 'Wrong inter datacenter traffic'
   print 'average latency: ' + str(avg_latency)
   print 'inter datacenter traffic: ' + str(traffic)
 
