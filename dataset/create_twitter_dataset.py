@@ -99,7 +99,7 @@ def access_timeline(timestamp, timeline_uuid, source, target_server, result_file
     # Read each tweet from the server.
     for tweet in timeline_list:
         read_target_server = tweet_server[tweet]
-        result_file.write(LOG_FORMAT % (timestamp, tweet, source, timeline_uuid, read_target_server, 'READ', '200', str(TWEET_SIZE)))
+        result_file.write(LOG_FORMAT % (timestamp, tweet, target_server, timeline_uuid, read_target_server, 'READ', '200', str(TWEET_SIZE)))
         if tweet in reply_stream_map:  # read the timeline where the origin of this reply tweet resides
             target_timeline = reply_stream_map[tweet]
             result_file.write(LOG_FORMAT % (timestamp, target_timeline, target_server, timeline_uuid, read_target_server, 'READ', '200', str(TWEET_SIZE)))
