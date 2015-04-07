@@ -11,6 +11,7 @@ from ip_location_cache import ip_location_cache
 from volley import Volley
 from greedy_algo import GreedyReplication
 from aggregator import Aggregator
+from evaluator import Evaluator
 
 def update_ip_lat_long_map(ip_lat_long_map_file):
   cache = ip_location_cache()

@@ -26,7 +26,7 @@ class Evaluator:
     if read_logs is None:
       read_logs = self.aggregator.get_read_log_entries(self.start_time, self.end_time)
     if moving_logs is None:
-      moving_logs = self.aggregator.get_file_moving_log_entries(self.start_time, self.end_time)
+      moving_logs = self.aggregator.get_moving_log_entries(self.start_time, self.end_time)
     # calculate the average latency
     latency_sum = 0
     request_count = 0
