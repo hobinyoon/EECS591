@@ -56,7 +56,7 @@ def write_file():
         file.save(file_path)
         metadata.update_file_stored(file_uuid, app.config['HOST'], get_file_size(file_path))
         host_address = app.config['simulation_ip'] if 'simulation_ip' in app.config else app.config['HOST']
-        logger.log(file_uuid, ip_address, 'null', host_address, 'WRITE', requests.codes.created, os.path.getsize(file_path))
+        logger.log(file_uuid, ip_address, 'null', host_address, 'WRITE', requests.codes.created, 0)
         return file_uuid, requests.codes.created
     else:
         host_address = app.config['simulation_ip'] if 'simulation_ip' in app.config else app.config['HOST']
@@ -82,7 +82,7 @@ def read_file():
             def remove_request(response):
                 metadata.remove_concurrent_request(filename, ip_address)
                 metadata.close()
-        logger.log(filename, ip_address, source_uuid, host_address, 'READ', requests.codes.ok, os.path.getsize(file_path))
+        logger.log(filename, ip_address, source_uuid, host_address, 'READ', requests.codes.ok, get_file_size(file_path))
         time.sleep(delay_time)
         return send_from_directory(UPLOAD_FOLDER, secure_filename(filename))
 
@@ -172,7 +172,7 @@ def logs():
 def can_move_file():
     file_size = float(request.args.get('file_size'))
     storage_limit = app.config['storage_limit']
-    current_storage = sum(os.path.getsize(f) for f in os.listdir(UPLOAD_FOLDER) if os.path.isfile(f))
+    current_storage = sum(get_file_size(f) for f in os.listdir(UPLOAD_FOLDER) if os.path.isfile(f))
     space_left = int(storage_limit) - current_storage
     response_message = space_left
     if file_size < space_left:
@@ -297,7 +297,7 @@ def clone_file(file_uuid, destination, method, ip_address):
     if (write_request.status_code == requests.codes.created):
         metadata.update_file_stored(file_uuid, destination, get_file_size(file_path))
     host_address = app.config['simulation_ip'] if 'simulation_ip' in app.config else app.config['HOST']
-    logger.log(file_uuid, ip_address, 'null', host_address, method, write_request.status_code, os.path.getsize(file_path))
+    logger.log(file_uuid, ip_address, 'null', host_address, method, write_request.status_code, get_file_size(file_path))
     if (write_request.status_code == requests.codes.created):
         return 'Success', requests.codes.ok
     else:
