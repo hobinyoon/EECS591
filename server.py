@@ -298,10 +298,10 @@ def clone_file(file_uuid, destination, method, ip_address):
     if (write_request.status_code == requests.codes.created):
         metadata.update_file_stored(file_uuid, destination, get_file_size(file_path))  
         destination = util.convert_to_simulation_ip(destination)
-        logger.log(file_uuid, host_address, 'null', destination, method, requests.codes.ok, get_file_size(file_path))
+        logger.log(file_uuid, ip_address, 'null', host_address, method, requests.codes.ok, get_file_size(file_path))
         return 'Success', requests.codes.ok
     else:
-        logger.log(file_uuid, host_address, 'null', destination, method, requests.codes.internal_server_error, get_file_size(file_path))
+        logger.log(file_uuid, ip_address, 'null', host_address, method, requests.codes.internal_server_error, get_file_size(file_path))
         return 'Not okay', requests.codes.internal_server_error
 
 # Helper for distributed replication
