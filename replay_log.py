@@ -98,7 +98,7 @@ def replay_log(log_file, enable_concurrency = True, allow_writes = True):
     if enable_concurrency and timestamp == last_timestamp:
       concurrent_processes = check_concurrent_execution_and_wait(concurrent_processes, uuid)
 
-      delay = float(request_size) / DELAY_FACTOR
+      delay = float(response_size) / DELAY_FACTOR
 
       if delay > MAX_DELAY:
         delay = MAX_DELAY
