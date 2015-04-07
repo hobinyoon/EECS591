@@ -24,7 +24,8 @@ SERVER_LIST_FILE = 'servers.txt'
 SIMULATION_IP_FILE = 'simulation_ip.txt'
 METADATA_FILE = 'metadata.db'
 PREFIX = '../'
-FILES_TO_DEPLOY = [ 'server.py', 'client.py', 'metadata_manager.py', 'util.py', 'requirements.txt', 'metadata.sql', 'logger.py', 'cache', 'server.cnf', SERVER_LIST_FILE ]
+FILES_TO_DEPLOY = [ 'server.py', 'client.py', 'metadata_manager.py', 'util.py', 'requirements.txt',
+    'metadata.sql', 'logger.py', 'cache', 'server.cnf', SERVER_LIST_FILE, SIMULATION_IP_FILE ]
 RUN_FILES = [ 'server.py' ]
 PROJECT_NAME = 'eecs591'
 
