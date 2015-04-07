@@ -55,20 +55,7 @@ class Aggregator:
         start_timestamp = int(first_log.split("\t")[0])
         print "Updated log from server <http://" + server + "> for date: " + self.timestamp_to_date(start_timestamp) + "."
         start_timestamp += self.SECONDS_PER_DAY
-
-    # I don't think we need this section here, it should be handled in request_log_from_server because it queries
-    # for the earliest log so we don't need to guess at it.
-
-    # # Find last-aggregated timestamp for this server
-    # elif start_timestamp == 'update':
-    #   start_timestamp = self.log_mgr.last_timestamp(server)
-    #   if start_timestamp is None:
-    #     # log database is empty
-    #     # this is a bootstrap problem, retrive logs from timestamp 0 is not
-    #     # a good idea. as we don't know where exactly to strat from, use an
-    #     # approximation instead.
-    #     start_timestamp = self.date_to_timestamp("2015-3-20")
-
+        
     now = int(time.time())
     current_timestamp = start_timestamp
     while True:
