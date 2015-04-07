@@ -13,85 +13,72 @@ CLIENT_UPLOAD_FOLDER = 'client_upload/'
 CLIENT_DOWNLOAD_FOLDER = 'client_download/'
 SERVER_LIST = util.retrieve_server_list()
 
+NULL = 'null'
+READ_REQUEST = 'READ'
+WRITE_REQUEST = 'WRITE'
+
 DELAY_FACTOR = 5000   # Factor to divide filesize by to get delay time
 MAX_DELAY = 0.5       # Maximum delay time for concurrent requests
 
-def write_file(filename):
-  write_url = 'http://%s/write' % (SERVER_HOST)
-  if not os.path.exists(filename):
-    return None
-  files = {'file': open(filename, 'rb')}
-  # may need get latency number
+def write_file(uuid, source, dest, response_size):
+  print 'WRITE: source: ' + source + ', uuid: ' + uuid + ', response_size: ' + response_size
+  query_parameters = { 'uuid': uuid, 'ip': source }
+  dest = util.convert_to_local_hostname(dest)
+  write_url = 'http://%s/write?%s' % (dest, urllib.urlencode(query_parameters))
+  print write_url
+
+  # make the content of the file the file's theoretical size
+  files = {'file': response_size}
+
   r = requests.post(write_url, files = files)
   if (r.status_code != requests.codes.created):
-    # request failed
+    print 'FAIL: source: ' + source + ', uuid: ' + uuid + ', response_size: ' + response_size
     return None
-  file_uuid = r.text
-  return file_uuid
+  
+  print 'DONE: source: ' + source + ', uuid: ' + uuid + ', response_size: ' + response_size
+  return uuid
 
-def read_file(file_uuid, source_ip = None, delay = None):
-  print 'READ: source_ip: ' + source_ip + ', delay: ' + str(delay) + ', uuid: ' + file_uuid
-  query_parameters = {'uuid': file_uuid}
-  if source_ip is not None:
-    query_parameters['ip'] = source_ip
+def read_file(uuid, source_uuid, source, dest, delay):
+  print 'READ: source: ' + source + ', uuid: ' + uuid + ', source_uuid: ' + source_uuid + ', delay: ' + str(delay)
+  query_parameters = { 'uuid': uuid, 'ip': source, 'source_uuid': source_uuid }
   if delay is not None:
     query_parameters['delay'] = delay
 
-  closest_servers = util.find_closest_servers_with_ip(source_ip, SERVER_LIST)
-  closest_server_ip = util.convert_to_local_hostname(closest_servers[0]['server'])
-  read_url = 'http://%s/read?%s' % (closest_server_ip, urllib.urlencode(query_parameters))
+  dest = util.convert_to_local_hostname(dest)
+  read_url = 'http://%s/read?%s' % (dest, urllib.urlencode(query_parameters))
   print read_url
 
   # may need get latency number
   r = requests.get(read_url, stream=True)
   if (r.status_code == requests.codes.ok):
-    with open(CLIENT_DOWNLOAD_FOLDER + file_uuid, 'wb') as fd:
+    with open(CLIENT_DOWNLOAD_FOLDER + uuid, 'wb') as fd:
       chunk_size = 1024
       for chunk in r.iter_content(chunk_size):
         fd.write(chunk)
       fd.close()
-      print 'DONE: source_ip: ' + source_ip + ', delay: ' + str(delay) + ', uuid: ' + file_uuid
+      print 'DONE: source: ' + source + ', uuid: ' + uuid + ', source_uuid: ' + source_uuid
       return True
 
   # request failed
-  print 'FAIL: source_ip: ' + source_ip + ', delay: ' + str(delay) + ', uuid: ' + file_uuid
+  print 'FAIL: source: ' + source + ', uuid: ' + uuid + ', source_uuid: ' + source_uuid
   print '\tSTATUS: ' + str(r.status_code) + ', TEXT: ' + r.text
   return False
 
-def populate_server_with_log(log_file):
-  request_to_file_uuid = {}
-  fd = open(log_file, 'r')
-  i = 0
-  for line in fd:
-    request_source, request_content, request_size, concurrent = line.split('\t')
-    if not request_to_file_uuid.has_key(request_content):
-      # take request as a file
-      files = {'file': request_size}
-      i += 1
-      write_url = 'http://%s/write' % (SERVER_LIST[i % len(SERVER_LIST)])
-      r = requests.post(write_url, files = files)
-      print write_url
-      print files
-      if (r.status_code != requests.codes.created):
-        print r.status_code
-        print r.text
-        raise ValueError('post request failed')
-      file_uuid = r.text
-      request_to_file_uuid[request_content] = file_uuid
-  fd.close()
-  return request_to_file_uuid
+def execute_log_line(uuid, source, source_uuid, dest, request_type, response_size, delay = None):
+  if request_type == READ_REQUEST:
+    return read_file(uuid, source_uuid, source, dest, delay)
+  elif request_type == WRITE_REQUEST:
+    return write_file(uuid, source, dest, response_size)
 
 # helper function to pause until concurrent execution is finished
-def check_concurrent_execution_and_wait(concurrent_processes, concurrent_uuid, uuid):
-  if len(concurrent_processes) > 0 and concurrent_uuid != uuid:
-    print 'Waiting on concurrency of cardinality ' + str(len(concurrent_processes)) + ' on uuid ' + str(concurrent_uuid)
+def check_concurrent_execution_and_wait(concurrent_processes, uuid):
+  if len(concurrent_processes) > 0:
     for process in concurrent_processes:
       process.join()
     concurrent_processes = []
-    concurrent_uuid = None
-  return concurrent_processes, concurrent_uuid
+  return concurrent_processes
 
-def replay_log(log_file, request_to_file_uuid, enable_concurrency = True):
+def replay_log(log_file, enable_concurrency = True, allow_writes = True):
   fd = open(log_file, 'r')
 
   # pool of processes concurrently running
@@ -99,18 +86,17 @@ def replay_log(log_file, request_to_file_uuid, enable_concurrency = True):
   # uuid of file that's concurrently running
   concurrent_uuid = None
 
-  for line in fd:
-    request_source, request_content, request_size, concurrent = line.split('\t')
-    concurrent = concurrent.strip() # strip newlines
-    print 'request_source: ' + str(request_source)
-    print 'request_content: ' + str(request_content)
-    print 'request_size: ' + str(request_size)
-    print 'concurrent: ' + str(concurrent)
-    uuid = request_to_file_uuid[request_content]
+  last_timestamp = 0
 
+  for line in fd:
+    timestamp, uuid, source, source_uuid, dest, request_type, response_code, response_size = line.split('\t')
+
+    if request_type == WRITE_REQUEST and not allow_writes:
+      continue
+      
     # If concurrent, run concurrently with delay
-    if enable_concurrency and concurrent == 'C':
-      concurrent_processes, concurrent_uuid = check_concurrent_execution_and_wait(concurrent_processes, concurrent_uuid, uuid)
+    if enable_concurrency and timestamp == last_timestamp:
+      concurrent_processes = check_concurrent_execution_and_wait(concurrent_processes, uuid)
 
       delay = float(request_size) / DELAY_FACTOR
 
@@ -118,28 +104,27 @@ def replay_log(log_file, request_to_file_uuid, enable_concurrency = True):
         delay = MAX_DELAY
 
       # run concurrently
-      process = Process(target=read_file, args=(uuid, request_source, delay))
+      process = Process(target=execute_log_line, args=(uuid, source, source_uuid, dest, request_type, response_size, delay))
       process.start()
       concurrent_processes.append(process)
-      concurrent_uuid = uuid
     else:
       if enable_concurrency:
-        concurrent_processes, concurrent_uuid = check_concurrent_execution_and_wait(concurrent_processes, concurrent_uuid, uuid)
-
-      succeed = read_file(uuid, request_source)
+        concurrent_processes = check_concurrent_execution_and_wait(concurrent_processes, uuid)
+      
+      succeed = execute_log_line(uuid, source, source_uuid, dest, request_type, response_size)
       if not succeed:
         raise ValueError('request failed with file uuid: ', uuid)
 
-  check_concurrent_execution_and_wait(concurrent_processes, concurrent_uuid, None)
+    last_timestamp = timestamp
 
-def simulate_requests(request_log_file, enable_concurrency = True, request_map = None):
+  check_concurrent_execution_and_wait(concurrent_processes, None)
+
+def simulate_requests(request_log_file, enable_concurrency = True, allow_writes = True):
   if not os.path.exists(CLIENT_UPLOAD_FOLDER):
     os.makedirs(CLIENT_UPLOAD_FOLDER)
   if not os.path.exists(CLIENT_DOWNLOAD_FOLDER):
     os.makedirs(CLIENT_DOWNLOAD_FOLDER)
-  if request_map is None:
-    request_map = populate_server_with_log(request_log_file)
   start_time = int(time.time())
-  replay_log(request_log_file, request_map, enable_concurrency)
+  replay_log(request_log_file, enable_concurrency, allow_writes)
   end_time = int(time.time())
-  return (start_time, end_time, request_map)
+  return (start_time, end_time)
