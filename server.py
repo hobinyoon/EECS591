@@ -75,8 +75,8 @@ def read_file():
 
     file_path = os.path.join(UPLOAD_FOLDER, secure_filename(filename))
     if (metadata.is_file_exist_locally(filename, app.config['HOST']) is not None):
-        metadata.add_concurrent_request(filename, ip_address)
         if app.config['use_dist_replication']:
+            metadata.add_concurrent_request(filename, ip_address)
             distributed_replication(filename, ip_address, delay_time, metadata)
             # remove the number of concurrent requests to the file
             @after_this_request
@@ -312,7 +312,6 @@ def clone_file(file_uuid, destination, method, ip_address):
 #   ip_address: the ip_address of the request
 #   metadata: the metadata
 def distributed_replication(filename, ip_address, delay_time, metadata):
-    metadata.add_concurrent_request(filename, ip_address)
     concurrent_requests = metadata.get_concurrent_request(filename)
     if concurrent_requests is not None:
         # Make sure that the number of concurrent requests is under k.
