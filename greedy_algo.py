@@ -125,6 +125,9 @@ class GreedyReplication:
           best_s = s
     if max_satisfied_num > 0:
       source = replica_map[best_c].itervalues().next()
+      if source == best_s:
+        # can't hold more than 1 replica, replicate to a random other server
+        best_s = random.sample(self.server_set - set([source]), 1)[0]
       self.replicate(best_c, source, best_s)
     else:
       # replicate everything
