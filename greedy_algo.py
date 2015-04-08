@@ -21,7 +21,7 @@ class GreedyReplication:
     self.access_map = {} # {uuid: {client_ip: num_request}}
     self.replica_map = {} # {uuid: {server_ip: num_replica}}
     self.last_timestamp = 0 # the timestamp of last update
-    self.requests_per_replica = 5
+    self.requests_per_replica = 3
     self.uuid_to_server = None
     # self.sample_interval = 1000 # the time interval between two rounds in second
 
@@ -168,6 +168,7 @@ class GreedyReplication:
     return True
 
   def replicate(self, content, source, dest):
+    print 'Greedy: replicate file %s from %s to %s', (content, source, dest)
     if source == dest:
       if dest not in self.replica_map[content]:
         self.replica_map[content] = 0
