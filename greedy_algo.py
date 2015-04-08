@@ -1,4 +1,5 @@
 # This file implement simplified greedy replication algorithm.
+
 # Python import
 import random
 import os
@@ -20,7 +21,7 @@ class GreedyReplication:
     self.access_map = {} # {uuid: {client_ip: num_request}}
     self.replica_map = {} # {uuid: {server_ip: num_replica}}
     self.last_timestamp = 0 # the timestamp of last update
-    self.requests_per_replica = 500
+    self.requests_per_replica = 5
     self.uuid_to_server = None
     # self.sample_interval = 1000 # the time interval between two rounds in second
 
