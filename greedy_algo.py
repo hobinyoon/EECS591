@@ -44,8 +44,8 @@ class GreedyReplication:
         replica_map[file_uuid][server] += 1
 
     current_timestamp = int(time.time())
-    logs = self.aggregator.get_log_entries(self.last_timestamp, current_timestamp)
-    # used recently generated logs to update access_map
+    logs = self.aggregator.get_read_log_entries(last_timestamp, current_timestamp)
+    # used recently generated logs to update inner data structure
     for log in logs:
       timestamp, uuid, source, source_uuid, dest, req_type, status, response_size = log
       if uuid not in content_set:
