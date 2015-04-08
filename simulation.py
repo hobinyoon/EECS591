@@ -15,7 +15,7 @@ from evaluator import Evaluator
 
 def update_ip_lat_long_map(ip_lat_long_map_file):
   cache = ip_location_cache()
-  
+
   fd = open(ip_lat_long_map_file, 'r')
 
   for line in fd:
@@ -45,7 +45,7 @@ if __name__ == '__main__':
 
   # after_start_time, after_end_time = replay_log.simulate_requests('dataset/synthetic/01_random_replication/access_log.txt', False, False)
   # after_start_time, after_end_time = replay_log.simulate_requests('dataset/synthetic/02_replication_effects/access_log.txt', False, False)
-  after_start_time, after_end_time = replay_log.simulate_requests('dataset/synthetic/03_real_time_algorithm/access_log.txt', False, False)
+  after_start_time, after_end_time = replay_log.simulate_requests('dataset/synthetic/03_real_time_algorithm/access_log.txt', True, False)
   evaluator.set_time(before_end_time, after_end_time)
   average_latency_after_volley, inter_datacenter_traffic = evaluator.evaluate()
 
