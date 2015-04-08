@@ -21,13 +21,13 @@ class MetadataManager:
         else:
             return result[0]
 
-    # Returns the information of the file stored locally on this machine.
+    # Returns the information of the file stored on a server.
     #
     # params:
     #   file_uuid: the file's uuid
-    #   local: the local machine's address
-    def is_file_exist_locally(self, file_uuid, local):
-        self.cursor.execute('SELECT * FROM FileMap WHERE uuid =? AND server=?', (file_uuid, local))
+    #   server: the server address
+    def file_exists_on_server(self, file_uuid, server):
+        self.cursor.execute('SELECT * FROM FileMap WHERE uuid =? AND server=?', (file_uuid, server))
         return self.cursor.fetchone()
 
     # Adds the file uuid with the server stored into the database
