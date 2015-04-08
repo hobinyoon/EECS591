@@ -56,7 +56,7 @@ def write_file():
         file.save(file_path)
         metadata.update_file_stored(file_uuid, app.config['HOST'], get_file_size(file_path))
         host_address = app.config['simulation_ip'] if 'simulation_ip' in app.config else app.config['HOST']
-        logger.log(file_uuid, ip_address, 'null', host_address, 'WRITE', requests.codes.created, os.path.getsize(file_path))
+        logger.log(file_uuid, ip_address, 'null', host_address, 'WRITE', requests.codes.created, 0)
         return file_uuid, requests.codes.created
     else:
         host_address = app.config['simulation_ip'] if 'simulation_ip' in app.config else app.config['HOST']
@@ -74,15 +74,16 @@ def read_file():
     host_address = app.config['simulation_ip'] if 'simulation_ip' in app.config else app.config['HOST']
 
     file_path = os.path.join(UPLOAD_FOLDER, secure_filename(filename))
-    if (metadata.is_file_exist_locally(filename, app.config['HOST']) is not None):
+    if (metadata.file_exists_on_server(filename, app.config['HOST']) is not None):
         if app.config['use_dist_replication']:
+            metadata.add_concurrent_request(filename, ip_address)
             distributed_replication(filename, ip_address, delay_time, metadata)
             # remove the number of concurrent requests to the file
             @after_this_request
             def remove_request(response):
                 metadata.remove_concurrent_request(filename, ip_address)
                 metadata.close()
-        logger.log(filename, ip_address, source_uuid, host_address, 'READ', requests.codes.ok, os.path.getsize(file_path))
+        logger.log(filename, ip_address, source_uuid, host_address, 'READ', requests.codes.ok, get_file_size(file_path))
         time.sleep(delay_time)
         return send_from_directory(UPLOAD_FOLDER, secure_filename(filename))
 
@@ -104,10 +105,11 @@ def read_file():
                     # using file_exists
                     update_metadata_from_another_server(server, filename)
     else:
-        redirect_url = 'http://%s/read?%s' % (redirect_address[0], urllib.urlencode(redirect_args))
+        redirect_url = 'http://%s/read?%s' % (redirect_address, urllib.urlencode(redirect_args))
 
     if redirect_url is not None:
         logger.log(filename, ip_address, source_uuid, host_address, 'READ', requests.codes.found, -1)
+        print 'Redirecting to: ' + redirect_url
         return redirect(redirect_url, code=requests.codes.found)
 
     logger.log(filename, ip_address, source_uuid, host_address, 'READ', requests.codes.not_found, -1)
@@ -148,7 +150,7 @@ def delete():
     metadata = getattr(g, 'metadata', None)
     file_uuid = request.args.get('uuid')
     file_path = os.path.join(UPLOAD_FOLDER, file_uuid)
-    if (metadata.is_file_exist_locally(file_uuid, app.config['HOST'])):
+    if (metadata.file_exists_on_server(file_uuid, app.config['HOST'])):
         os.remove(file_path)
         metadata.delete_file_stored(file_uuid, app.config['HOST'])
         return 'Success', requests.codes.ok
@@ -171,7 +173,7 @@ def logs():
 def can_move_file():
     file_size = float(request.args.get('file_size'))
     storage_limit = app.config['storage_limit']
-    current_storage = sum(os.path.getsize(f) for f in os.listdir(UPLOAD_FOLDER) if os.path.isfile(f))
+    current_storage = sum(get_file_size(f) for f in os.listdir(UPLOAD_FOLDER) if os.path.isfile(f))
     space_left = int(storage_limit) - current_storage
     response_message = space_left
     if file_size < space_left:
@@ -191,13 +193,13 @@ def metadata():
 
     filename = request.args.get('uuid')
 
-    file_info = metadata.is_file_exist_locally(filename, app.config['HOST'])
-    
+    file_info = metadata.file_exists_on_server(filename, app.config['HOST'])
+
     if file_info is not None:
         response = { 'uuid': file_info[0], 'server': file_info[1], 'file_size': file_info[2] }
     else:
         server_with_file = metadata.lookup_file(filename, app.config['HOST'])
-        
+
         if server_with_file is None:
             other_servers = metadata.get_all_server(app.config['HOST'])
             if (len(other_servers) > 0):
@@ -287,20 +289,24 @@ def get_file_size(file_path):
 #   ip_address: the request ip_address
 def clone_file(file_uuid, destination, method, ip_address):
     metadata = getattr(g, 'metadata', None)
-    file_path = os.path.join(UPLOAD_FOLDER, secure_filename(file_uuid))
-    if not os.path.exists(file_path):
-        return 'File not found', requests.codes.not_found
-    destination_with_endpoint = 'http://%s/write?%s' % (destination, urllib.urlencode({ 'uuid': file_uuid }))
-    files = {'file': open(file_path, 'rb')}
-    write_request = requests.post(destination_with_endpoint, files=files)
-    if (write_request.status_code == requests.codes.created):
-        metadata.update_file_stored(file_uuid, destination, get_file_size(file_path))
-    host_address = app.config['simulation_ip'] if 'simulation_ip' in app.config else app.config['HOST']
-    logger.log(file_uuid, ip_address, 'null', host_address, method, write_request.status_code, os.path.getsize(file_path))
-    if (write_request.status_code == requests.codes.created):
-        return 'Success', requests.codes.ok
+    if metadata.file_exists_on_server(file_uuid, destination) is None:
+        file_path = os.path.join(UPLOAD_FOLDER, secure_filename(file_uuid))
+        if not os.path.exists(file_path):
+            return 'File not found', requests.codes.not_found
+        host_address = app.config['simulation_ip'] if 'simulation_ip' in app.config else app.config['HOST']
+        destination_with_endpoint = 'http://%s/write?%s' % (destination, urllib.urlencode({ 'uuid': file_uuid, 'ip': host_address }))
+        files = {'file': open(file_path, 'rb')}
+        write_request = requests.post(destination_with_endpoint, files=files)
+        if (write_request.status_code == requests.codes.created):
+            metadata.update_file_stored(file_uuid, destination, get_file_size(file_path))
+            destination = util.convert_to_simulation_ip(destination)
+            logger.log(file_uuid, ip_address, 'null', host_address, method, requests.codes.ok, get_file_size(file_path))
+            return 'Success', requests.codes.ok
+        else:
+            logger.log(file_uuid, ip_address, 'null', host_address, method, requests.codes.internal_server_error, get_file_size(file_path))
+            return 'Not okay', requests.codes.internal_server_error
     else:
-        return 'Not okay', requests.codes.internal_server_error
+        return 'Success', requests.codes.ok
 
 # Helper for distributed replication
 #
@@ -309,7 +315,6 @@ def clone_file(file_uuid, destination, method, ip_address):
 #   ip_address: the ip_address of the request
 #   metadata: the metadata
 def distributed_replication(filename, ip_address, delay_time, metadata):
-    metadata.add_concurrent_request(filename, ip_address)
     concurrent_requests = metadata.get_concurrent_request(filename)
     if concurrent_requests is not None:
         # Make sure that the number of concurrent requests is under k.
