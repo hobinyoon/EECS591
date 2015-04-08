@@ -74,7 +74,7 @@ def read_file():
     host_address = app.config['simulation_ip'] if 'simulation_ip' in app.config else app.config['HOST']
 
     file_path = os.path.join(UPLOAD_FOLDER, secure_filename(filename))
-    if (metadata.is_file_exist_locally(filename, app.config['HOST']) is not None):
+    if (metadata.file_exists_on_server(filename, app.config['HOST']) is not None):
         if app.config['use_dist_replication']:
             metadata.add_concurrent_request(filename, ip_address)
             distributed_replication(filename, ip_address, delay_time, metadata)
@@ -150,7 +150,7 @@ def delete():
     metadata = getattr(g, 'metadata', None)
     file_uuid = request.args.get('uuid')
     file_path = os.path.join(UPLOAD_FOLDER, file_uuid)
-    if (metadata.is_file_exist_locally(file_uuid, app.config['HOST'])):
+    if (metadata.file_exists_on_server(file_uuid, app.config['HOST'])):
         os.remove(file_path)
         metadata.delete_file_stored(file_uuid, app.config['HOST'])
         return 'Success', requests.codes.ok
@@ -193,7 +193,7 @@ def metadata():
 
     filename = request.args.get('uuid')
 
-    file_info = metadata.is_file_exist_locally(filename, app.config['HOST'])
+    file_info = metadata.file_exists_on_server(filename, app.config['HOST'])
 
     if file_info is not None:
         response = { 'uuid': file_info[0], 'server': file_info[1], 'file_size': file_info[2] }
@@ -289,21 +289,24 @@ def get_file_size(file_path):
 #   ip_address: the request ip_address
 def clone_file(file_uuid, destination, method, ip_address):
     metadata = getattr(g, 'metadata', None)
-    file_path = os.path.join(UPLOAD_FOLDER, secure_filename(file_uuid))
-    if not os.path.exists(file_path):
-        return 'File not found', requests.codes.not_found
-    host_address = app.config['simulation_ip'] if 'simulation_ip' in app.config else app.config['HOST']
-    destination_with_endpoint = 'http://%s/write?%s' % (destination, urllib.urlencode({ 'uuid': file_uuid, 'ip': host_address }))
-    files = {'file': open(file_path, 'rb')}
-    write_request = requests.post(destination_with_endpoint, files=files)
-    if (write_request.status_code == requests.codes.created):
-        metadata.update_file_stored(file_uuid, destination, get_file_size(file_path))
-        destination = util.convert_to_simulation_ip(destination)
-        logger.log(file_uuid, ip_address, 'null', host_address, method, requests.codes.ok, get_file_size(file_path))
-        return 'Success', requests.codes.ok
+    if metadata.file_exists_on_server(file_uuid, destination) is None:
+        file_path = os.path.join(UPLOAD_FOLDER, secure_filename(file_uuid))
+        if not os.path.exists(file_path):
+            return 'File not found', requests.codes.not_found
+        host_address = app.config['simulation_ip'] if 'simulation_ip' in app.config else app.config['HOST']
+        destination_with_endpoint = 'http://%s/write?%s' % (destination, urllib.urlencode({ 'uuid': file_uuid, 'ip': host_address }))
+        files = {'file': open(file_path, 'rb')}
+        write_request = requests.post(destination_with_endpoint, files=files)
+        if (write_request.status_code == requests.codes.created):
+            metadata.update_file_stored(file_uuid, destination, get_file_size(file_path))
+            destination = util.convert_to_simulation_ip(destination)
+            logger.log(file_uuid, ip_address, 'null', host_address, method, requests.codes.ok, get_file_size(file_path))
+            return 'Success', requests.codes.ok
+        else:
+            logger.log(file_uuid, ip_address, 'null', host_address, method, requests.codes.internal_server_error, get_file_size(file_path))
+            return 'Not okay', requests.codes.internal_server_error
     else:
-        logger.log(file_uuid, ip_address, 'null', host_address, method, requests.codes.internal_server_error, get_file_size(file_path))
-        return 'Not okay', requests.codes.internal_server_error
+        return 'Success', requests.codes.ok
 
 # Helper for distributed replication
 #
