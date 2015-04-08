@@ -34,7 +34,7 @@ def write_file(uuid, source, dest, response_size):
   if (r.status_code != requests.codes.created):
     print 'FAIL: source: ' + source + ', uuid: ' + uuid + ', response_size: ' + response_size
     return None
-  
+
   print 'DONE: source: ' + source + ', uuid: ' + uuid + ', response_size: ' + response_size
   return uuid
 
@@ -93,11 +93,9 @@ def replay_log(log_file, enable_concurrency = True, allow_writes = True):
 
     if request_type == WRITE_REQUEST and not allow_writes:
       continue
-      
+
     # If concurrent, run concurrently with delay
     if enable_concurrency and timestamp == last_timestamp:
-      concurrent_processes = check_concurrent_execution_and_wait(concurrent_processes, uuid)
-
       delay = float(response_size) / DELAY_FACTOR
 
       if delay > MAX_DELAY:
@@ -110,7 +108,7 @@ def replay_log(log_file, enable_concurrency = True, allow_writes = True):
     else:
       if enable_concurrency:
         concurrent_processes = check_concurrent_execution_and_wait(concurrent_processes, uuid)
-      
+
       succeed = execute_log_line(uuid, source, source_uuid, dest, request_type, response_size)
       if not succeed:
         raise ValueError('request failed with file uuid: ', uuid)
