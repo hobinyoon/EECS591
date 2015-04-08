@@ -75,6 +75,7 @@ def read_file():
 
     file_path = os.path.join(UPLOAD_FOLDER, secure_filename(filename))
     if (metadata.is_file_exist_locally(filename, app.config['HOST']) is not None):
+        metadata.add_concurrent_request(filename, ip_address)
         if app.config['use_dist_replication']:
             distributed_replication(filename, ip_address, delay_time, metadata)
             # remove the number of concurrent requests to the file
@@ -193,12 +194,12 @@ def metadata():
     filename = request.args.get('uuid')
 
     file_info = metadata.is_file_exist_locally(filename, app.config['HOST'])
-    
+
     if file_info is not None:
         response = { 'uuid': file_info[0], 'server': file_info[1], 'file_size': file_info[2] }
     else:
         server_with_file = metadata.lookup_file(filename, app.config['HOST'])
-        
+
         if server_with_file is None:
             other_servers = metadata.get_all_server(app.config['HOST'])
             if (len(other_servers) > 0):
@@ -296,7 +297,7 @@ def clone_file(file_uuid, destination, method, ip_address):
     files = {'file': open(file_path, 'rb')}
     write_request = requests.post(destination_with_endpoint, files=files)
     if (write_request.status_code == requests.codes.created):
-        metadata.update_file_stored(file_uuid, destination, get_file_size(file_path))  
+        metadata.update_file_stored(file_uuid, destination, get_file_size(file_path))
         destination = util.convert_to_simulation_ip(destination)
         logger.log(file_uuid, ip_address, 'null', host_address, method, requests.codes.ok, get_file_size(file_path))
         return 'Success', requests.codes.ok
