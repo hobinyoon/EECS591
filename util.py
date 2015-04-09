@@ -142,7 +142,7 @@ def construct_post_request(url, uuid):
 def get_file_list_on_server(server):
     url = 'http://%s/local_file_list' % (server,)
     request = requests.get(url)
+    if request.text == '':
+      return []
     file_list = request.text.split('\n')
-    # debug
-    print file_list
     return file_list

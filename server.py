@@ -129,9 +129,11 @@ def file_exists():
 def local_file_list():
     server = app.config['HOST']
     file_list = metadata.get_file_list_on_server(server)
-    retval = file_list[0]
-    for file_uuid in file_list[1:]:
-      retval += '\n' + str(file_uuid)
+    if len(file_list) <= 0:
+      return ''
+    retval = file_list[0][0]
+    for file_uuid_tuple in file_list[1:]:
+      retval += '\n' + str(file_uuid_tuple[0])
     return retval
 
 # Transfers the file. This API call should not be open to all users.

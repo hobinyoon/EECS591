@@ -30,26 +30,28 @@ class GreedyReplication:
   # call this function before running greedy algorithm
   def update(self):
     # clear data
-    content_set = set([])
-    access_map = {}
-    replica_map = {}
+    self.content_set = set([])
+    self.access_map = {}
+    self.replica_map = {}
     # update content_set, replica_map
+    print self.server_set
     for server in self.server_set:
-      file_list = get_file_list_on_server(server)
+      print server
+      file_list = util.get_file_list_on_server(server)
       for file_uuid in file_list:
-        content_set.add(file_uuid)
-        if file_uuid not in replica_map:
-          replica_map[file_uuid] = {}
-        if server not in replica_map[file_uuid]:
-          replica_map[file_uuid][server] = 0
-        replica_map[file_uuid][server] += 1
+        self.content_set.add(file_uuid)
+        if file_uuid not in self.replica_map:
+          self.replica_map[file_uuid] = {}
+        if server not in self.replica_map[file_uuid]:
+          self.replica_map[file_uuid][server] = 0
+        self.replica_map[file_uuid][server] += 1
 
     current_timestamp = int(time.time())
-    logs = self.aggregator.get_read_log_entries(last_timestamp, current_timestamp)
+    logs = self.aggregator.get_read_log_entries(self.last_timestamp, current_timestamp)
     # used recently generated logs to update inner data structure
     for log in logs:
       timestamp, uuid, source, source_uuid, dest, req_type, status, response_size = log
-      if uuid not in content_set:
+      if uuid not in self.content_set:
         continue
       self.content_set.add(uuid)
       if uuid not in self.access_map:
@@ -60,6 +62,10 @@ class GreedyReplication:
           self.access_map[uuid][source] = 0
         self.access_map[uuid][source] += 1
     self.last_timestamp = current_timestamp
+
+    # debug
+    print 'self.replica_map: '
+    print self.replica_map
 
   def run_replication(self):
     self.update()
@@ -124,7 +130,7 @@ class GreedyReplication:
           best_c = c
           best_s = s
     if max_satisfied_num > 0:
-      source = replica_map[best_c].itervalues().next()
+      source = self.replica_map[best_c].iterkeys().next()
       if source == best_s:
         # can't hold more than 1 replica, replicate to a random other server
         best_s = random.sample(self.server_set - set([source]), 1)[0]
@@ -136,10 +142,10 @@ class GreedyReplication:
         if not self.enough_replica_for_content(content):
           if content not in self.replica_map:
             continue
-          source = self.replica_map[content].itervalues().next()
+          source = self.replica_map[content].iterkeys().next()
           #select first none zero replica
           for server in self.server_set:
-            print "replicate " + "content: " + content + " from: " + source + " to " + server
+            print 'replicate ' + 'content: ' + content + ' from: ' + source + ' to ' + server
             util.replicate(content, source, server)
 
   def enough_replica(self):
@@ -154,8 +160,11 @@ class GreedyReplication:
     # this is an approximate implementation, may need to
     # construct a bipartite graph and run min matching algo
     server_to_request_sum_map = {}
+    if c not in self.access_map.keys():
+      # no client accesses c
+      return True
     for a in self.access_map[c].keys():
-      nearest_server = convert_server_to_test_server(util.find_closest_servers_with_ip(a, self.server_set)[0]['server'])
+      nearest_server = util.find_closest_servers_with_ip(a, self.server_set)[0]['server']
       # print "nearest server: " + nearest_server
       if nearest_server not in server_to_request_sum_map:
         server_to_request_sum_map[nearest_server] = 0 

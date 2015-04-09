@@ -61,21 +61,10 @@ if __name__ == '__main__':
     print '*************** Inter Datacenter Communication Cost ******************'
     print 'Volley: ' + str(inter_datacenter_traffic)
   elif algorithm == 'greedy':
-    """
-    <<<<<<< HEAD
-
-      print '************************* Running simulation *************************'
-      before_volley, start_time, end_time, request_map, uuid_to_server = run_simulation('dataset/sample_log_ready', args['disable_concurrency'])
-      greedy.uuid_to_server = uuid_to_server
-      greedy.run_replication()
-      after_volley, start_time, end_time, request_map, uuid_to_server = run_simulation('dataset/sample_log_ready', args['disable_concurrency'], request_map)
-      # for greedy algorithm
-    =======
-    """
     print '************************* Set up simulation environment *************************'
-    # update_ip_lat_long_map('dataset/synthetic/01_random_replication/ip_lat_long_map.txt')
+    update_ip_lat_long_map('dataset/synthetic/01_random_replication/ip_lat_long_map.txt')
     # update_ip_lat_long_map('dataset/synthetic/02_replication_effects/ip_lat_long_map.txt')
-    update_ip_lat_long_map('dataset/synthetic/03_real_time_algorithm/ip_lat_long_map.txt')
+    # update_ip_lat_long_map('dataset/synthetic/03_real_time_algorithm/ip_lat_long_map.txt')
 
     print '************************* Running simulation *************************'
     before_start_time, before_end_time = replay_log.simulate_requests('dataset/synthetic/01_random_replication/access_log.txt', args['disable_concurrency'])
@@ -85,6 +74,7 @@ if __name__ == '__main__':
     average_latency_before_greedy, _ = evaluator.evaluate()
     greedy = GreedyReplication()
     greedy.last_timestamp = before_end_time
+    greedy.run_replication()
 
     after_start_time, after_end_time = replay_log.simulate_requests('dataset/synthetic/01_random_replication/access_log.txt', False, False)
     # after_start_time, after_end_time = replay_log.simulate_requests('dataset/synthetic/02_replication_effects/access_log.txt', False, False)
