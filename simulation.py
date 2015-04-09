@@ -51,10 +51,6 @@ if __name__ == '__main__':
     evaluator.set_time(before_end_time, after_end_time)
     average_latency_after_volley, inter_datacenter_traffic = evaluator.evaluate()
 
-    # greedy = GreedyReplication()
-    # greedy.run_replication()
-    # after_volley, start_time, end_time, request_map = replay_log.simulate_requests('dataset/sample_log_ready', args['disable_concurrency'], request_map)
-
     print '************************* Average latency ****************************'
     print 'BEFORE_VOLLEY: ' + str(average_latency_before_volley) + ', start time: ' + str(before_start_time) + ', end time: ' + str(before_end_time)
     print 'AFTER_VOLLEY: ' + str(average_latency_after_volley) + ', start time: ' + str(after_start_time) + ', end time: ' + str(after_end_time)

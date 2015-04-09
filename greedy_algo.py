@@ -34,9 +34,7 @@ class GreedyReplication:
     self.access_map = {}
     self.replica_map = {}
     # update content_set, replica_map
-    print self.server_set
     for server in self.server_set:
-      print server
       file_list = util.get_file_list_on_server(server)
       for file_uuid in file_list:
         self.content_set.add(file_uuid)
@@ -62,10 +60,6 @@ class GreedyReplication:
           self.access_map[uuid][source] = 0
         self.access_map[uuid][source] += 1
     self.last_timestamp = current_timestamp
-
-    # debug
-    print 'self.replica_map: '
-    print self.replica_map
 
   def run_replication(self):
     self.update()
@@ -165,7 +159,6 @@ class GreedyReplication:
       return True
     for a in self.access_map[c].keys():
       nearest_server = util.find_closest_servers_with_ip(a, self.server_set)[0]['server']
-      # print "nearest server: " + nearest_server
       if nearest_server not in server_to_request_sum_map:
         server_to_request_sum_map[nearest_server] = 0 
       server_to_request_sum_map[nearest_server] += self.access_map[c][a]
