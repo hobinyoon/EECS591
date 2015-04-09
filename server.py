@@ -177,7 +177,10 @@ def logs():
     else:
         list_of_files = os.listdir(LOG_DIRECTORY)
         list_of_files.sort()
-        file_name = list_of_files[0]
+        if len(list_of_files) > 0:
+          file_name = list_of_files[0]
+        else:
+          file_name = ''
     return send_from_directory(LOG_DIRECTORY, secure_filename(file_name))
 
 # Returns whether the server can handle more files.
