@@ -88,34 +88,6 @@ def convert_to_local_hostname(simulation_ip):
                 break
     return result
 
-def convert_localhost_to_simulation_ip(server):
-    # hardcode AWS servers for simulation
-    if server == 'localhost:5000':
-      server = '54.175.68.60'
-    elif server == 'localhost:5001':
-        server = '54.65.80.55'
-    elif server == 'localhost:5002':
-        server = '54.93.104.58'
-    elif server == 'localhost:5003':
-        server = '54.207.24.208'
-    elif server == 'localhost:5004':
-        server = '54.69.237.99'
-    return server
-
-def convert_server_to_test_server(server):
-  # hardcode AWS servers for simulation
-  if server == '54.175.68.60':
-    server = 'localhost:5000'
-  elif server == '54.65.80.55':
-    server = 'localhost:5001'
-  elif server == '54.93.104.58':
-    server = 'localhost:5002'
-  elif server == '54.207.24.208':
-    server = 'localhost:5003'
-  elif server == '54.69.237.99':
-    server = 'localhost:5004'
-  return server
-
 # Finds the closest server for a lat/long tuple pair
 #
 # params:
@@ -127,8 +99,8 @@ def find_closest_servers_with_ip(ip_addr, servers):
     servers_to_search = servers
     best_servers = []
     for server in servers_to_search:
-        server = convert_to_simulation_ip(server)
         server_dict = { 'server': server, 'distance': None }
+        server = convert_to_simulation_ip(server)
         item_location = ip_cache.get_lat_lon_from_ip(ip_addr)
         server_lat_lon = ip_cache.get_lat_lon_from_ip(server)
         if server_lat_lon is None:
@@ -166,3 +138,11 @@ def construct_post_request(url, uuid):
     files = {'file': open(uuid, 'rb')}
     request = requests.post(url, files)
     return request
+
+def get_file_list_on_server(server):
+    url = 'http://%s/local_file_list' % (server,)
+    request = requests.get(url)
+    if request.text == '':
+      return []
+    file_list = request.text.split('\n')
+    return file_list

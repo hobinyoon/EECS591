@@ -124,6 +124,18 @@ def file_exists():
     else:
         return 'File not found', requests.codes.not_found
 
+# return a list of files that are stored on this server, seperated by '\n'
+@app.route('/local_file_list', methods=['GET'])
+def local_file_list():
+    server = app.config['HOST']
+    file_list = metadata.get_file_list_on_server(server)
+    if len(file_list) <= 0:
+      return ''
+    retval = file_list[0][0]
+    for file_uuid_tuple in file_list[1:]:
+      retval += '\n' + str(file_uuid_tuple[0])
+    return retval
+
 # Transfers the file. This API call should not be open to all users.
 @app.route('/transfer', methods=['PUT'])
 def transfer():
