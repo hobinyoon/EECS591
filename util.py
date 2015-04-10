@@ -24,7 +24,7 @@ def get_distance(location1, location2):
 
 def replicate(file_uuid, source_ip, dest_ip):
   print 'Replicate file ' + file_uuid + ' from ' + source_ip + ' to ' + dest_ip
-  url = 'http://%s/replicate?%s' % (source_ip, urllib.urlencode({'ip': dest_ip}))
+  url = 'http://%s/replicate?%s' % (source_ip, urllib.urlencode({'uuid': file_uuid, 'destination': dest_ip}))
   r = requests.put(url)
   if r.status_code == requests.codes.ok:
     print "\t succeed!"

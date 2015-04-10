@@ -11,6 +11,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), 'vo
 from ip_location_cache import ip_location_cache
 from volley import Volley
 from greedy_algo import GreedyReplication
+from central_greedy import SimpleCentralizedGreedy
 from aggregator import Aggregator
 from evaluator import Evaluator
 
