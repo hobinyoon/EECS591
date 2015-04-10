@@ -16,7 +16,7 @@ class SimpleCentralizedGreedy:
   def __init__(self):
     self.aggregator = Aggregator() # to retrive server logs
     self.server_set = set(util.retrieve_server_list()) # [server_ip, ]
-    self.content_set = set([])
+    self.content_set = set()
     self.replica_map = {} # { file_uuid: servers that store the file }
     self.replication_task = []
     self.last_timestamp = 0 # the time stamp of last update
@@ -36,11 +36,7 @@ class SimpleCentralizedGreedy:
           self.replica_map[file_uuid].append(server)
 
     current_timestamp = int(time.time())
-    # TODO: implement get_redirect_log_entries
     logs = self.aggregator.get_redirect_log_entries(self.last_timestamp, current_timestamp)
-
-    print 'redirect logs: '
-    print logs
 
     # used recently generated redirect logs to instruct replication
     for log in logs:
