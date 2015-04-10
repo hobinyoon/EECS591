@@ -26,66 +26,49 @@ def update_ip_lat_long_map(ip_lat_long_map_file):
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument('--disable-concurrency', action='store_false', help='disable concurrency (no delays on requests)')
-  parser.add_argument('--algorithm', choices=['volley', 'greedy', 'distributed'], help='the algorithm used for replication')
+  parser.add_argument('--algorithm', choices=['volley', 'greedy', 'distributed'], help='the algorithm used for replication', required=True)
+  parser.add_argument('--dataset', choices=['1', '2', '3'], help='choices for choosing the dataset', required=True)
 
   args = vars(parser.parse_args())
   algorithm = args['algorithm']
+  dataset_name = None
+  if args['dataset'] == '1':
+    dataset_name = '01_random_replication'
+  elif args['dataset'] == '2':
+    dataset_name = '02_replication_effects'
+  elif args['dataset'] == '3':
+    dataset_name = '03_real_time_algorithm'
+  ip_lat_long_map_filename = 'dataset/synthetic/' + dataset_name + '/ip_lat_long_map.txt'
+  access_log_filename = 'dataset/synthetic/' + dataset_name + '/access_log.txt'
 
-  if algorithm == 'volley':
+  if algorithm == 'volley' or algorithm == 'greedy':
     print '************************* Set up simulation environment *************************'
-    #update_ip_lat_long_map('dataset/synthetic/01_random_replication/ip_lat_long_map.txt')
-    update_ip_lat_long_map('dataset/synthetic/02_replication_effects/ip_lat_long_map.txt')
-    #update_ip_lat_long_map('dataset/synthetic/03_real_time_algorithm/ip_lat_long_map.txt')
+    update_ip_lat_long_map(ip_lat_long_map_filename)
 
-    print '************************* Running simulation *************************'
-    #before_start_time, before_end_time = replay_log.simulate_requests('dataset/synthetic/01_random_replication/access_log.txt', args['disable_concurrency'])
-    before_start_time, before_end_time = replay_log.simulate_requests('dataset/synthetic/02_replication_effects/access_log.txt', args['disable_concurrency'])
-    #before_start_time, before_end_time = replay_log.simulate_requests('dataset/synthetic/03_real_time_algorithm/access_log.txt', args['disable_concurrency'])
+    print '************************* Running simulation on ' + algorithm + ' *************************'
+    before_start_time, before_end_time = replay_log.simulate_requests(access_log_filename, args['disable_concurrency'])
     evaluator = Evaluator(before_start_time, before_end_time)
-    average_latency_before_volley, _ = evaluator.evaluate()
-    Volley(before_start_time, before_end_time).execute()
+    average_latency_before, _ = evaluator.evaluate()
 
-    #after_start_time, after_end_time = replay_log.simulate_requests('dataset/synthetic/01_random_replication/access_log.txt', False, False)
-    after_start_time, after_end_time = replay_log.simulate_requests('dataset/synthetic/02_replication_effects/access_log.txt', False, False)
-    #after_start_time, after_end_time = replay_log.simulate_requests('dataset/synthetic/03_real_time_algorithm/access_log.txt', False, False)
+    if algorithm == 'volley':
+        Volley(before_start_time, before_end_time).execute()
+    elif algorithm == 'greedy':
+        greedy = GreedyReplication()
+        greedy.last_timestamp = before_end_time
+        greedy.run_replication()
+
+    after_start_time, after_end_time = replay_log.simulate_requests(access_log_filename, False, False)
     evaluator.set_time(before_end_time, after_end_time)
-    average_latency_after_volley, inter_datacenter_traffic = evaluator.evaluate()
+    average_latency_after, inter_datacenter_traffic = evaluator.evaluate()
 
     print '************************* Average latency ****************************'
-    print 'BEFORE_VOLLEY: ' + str(average_latency_before_volley) + ', start time: ' + str(before_start_time) + ', end time: ' + str(before_end_time)
-    print 'AFTER_VOLLEY: ' + str(average_latency_after_volley) + ', start time: ' + str(after_start_time) + ', end time: ' + str(after_end_time)
+    print 'BEFORE: ' + str(average_latency_before) + ', start time: ' + str(before_start_time) + ', end time: ' + str(before_end_time)
+    print 'AFTER: ' + str(average_latency_after) + ', start time: ' + str(after_start_time) + ', end time: ' + str(after_end_time)
     print '*************** Inter Datacenter Communication Cost ******************'
-    print 'Volley: ' + str(inter_datacenter_traffic)
-  elif algorithm == 'greedy':
-    print '************************* Set up simulation environment *************************'
-    update_ip_lat_long_map('dataset/synthetic/01_random_replication/ip_lat_long_map.txt')
-    # update_ip_lat_long_map('dataset/synthetic/02_replication_effects/ip_lat_long_map.txt')
-    # update_ip_lat_long_map('dataset/synthetic/03_real_time_algorithm/ip_lat_long_map.txt')
-
-    print '************************* Running simulation *************************'
-    before_start_time, before_end_time = replay_log.simulate_requests('dataset/synthetic/01_random_replication/access_log.txt', args['disable_concurrency'])
-    # before_start_time, before_end_time = replay_log.simulate_requests('dataset/synthetic/02_replication_effects/access_log.txt', args['disable_concurrency'])
-    # before_start_time, before_end_time = replay_log.simulate_requests('dataset/synthetic/03_real_time_algorithm/access_log.txt', args['disable_concurrency'])
-    evaluator = Evaluator(before_start_time, before_end_time)
-    average_latency_before_greedy, _ = evaluator.evaluate()
-    greedy = GreedyReplication()
-    greedy.last_timestamp = before_end_time
-    greedy.run_replication()
-
-    after_start_time, after_end_time = replay_log.simulate_requests('dataset/synthetic/01_random_replication/access_log.txt', False, False)
-    # after_start_time, after_end_time = replay_log.simulate_requests('dataset/synthetic/02_replication_effects/access_log.txt', False, False)
-    # after_start_time, after_end_time = replay_log.simulate_requests('dataset/synthetic/03_real_time_algorithm/access_log.txt', True, False)
-    evaluator.set_time(before_end_time, after_end_time)
-    average_latency_after_greedy, inter_datacenter_traffic = evaluator.evaluate()
-
-    print '************************* Average latency ****************************'
-    print 'BEFORE_GREEDY: ' + str(average_latency_before_greedy) + ', start time: ' + str(before_start_time) + ', end time: ' + str(before_end_time)
-    print 'AFTER_GREEDY: ' + str(average_latency_after_greedy) + ', start time: ' + str(after_start_time) + ', end time: ' + str(after_end_time)
-    print '*************** Inter Datacenter Communication Cost ******************'
-    print 'Greedy: ' + str(inter_datacenter_traffic)
+    print algorithm + ': ' + str(inter_datacenter_traffic)
   elif algorithm == 'distributed':
-    update_ip_lat_long_map('dataset/synthetic/03_real_time_algorithm/ip_lat_long_map.txt')
-    before_start_time, before_end_time = replay_log.simulate_requests('dataset/synthetic/03_real_time_algorithm/access_log.txt', args['disable_concurrency'])
+    update_ip_lat_long_map(ip_lat_long_map_filename)
+    before_start_time, before_end_time = replay_log.simulate_requests(access_log_filename, args['disable_concurrency'])
     evaluator = Evaluator(before_start_time, before_end_time)
     average_latency_before_volley, inter_datacenter_traffic = evaluator.evaluate()
     print '************************* Average latency ****************************'
