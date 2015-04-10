@@ -38,6 +38,10 @@ class SimpleCentralizedGreedy:
     current_timestamp = int(time.time())
     # TODO: implement get_redirect_log_entries
     logs = self.aggregator.get_redirect_log_entries(self.last_timestamp, current_timestamp)
+
+    print 'redirect logs: '
+    print logs
+
     # used recently generated redirect logs to instruct replication
     for log in logs:
       timestamp, uuid, source, source_uuid, dest, req_type, status, response_size = log
@@ -49,14 +53,17 @@ class SimpleCentralizedGreedy:
   def execute(self):
     self.update()
     for file_uuid, target in self.replication_task:
-      candidate_servers = replica_map[file_uuid]
-      source = util.find_closest_servers_with_ip(target, candidate_servers)[0]
+      candidate_servers = self.replica_map[file_uuid]
+      target_simulation_ip = util.convert_to_simulation_ip(target)
+      source = util.find_closest_servers_with_ip(target_simulation_ip, candidate_servers)[0]['server']
       self.replicate(file_uuid, source, target)
 
   def replicate(self, content, source, dest):
     print 'Greedy: replicate file %s from %s to %s', (content, source, dest)
     if source == dest:
       # a server can have at most one replcia, se we replicate to second nearest server
-      dest = util.find_closest_servers_with_ip(target, self.server_set - set(self.replica_map[content]))[0]
+      dest_simulation_ip = util.convert_to_simulation_ip(target)
+      candidate_servers = self.server_set - set(self.replica_map[content])
+      dest = util.find_closest_servers_with_ip(dest_simulation_ip, candidate_servers)[0]['server']
     util.replicate(content, source, dest)
 

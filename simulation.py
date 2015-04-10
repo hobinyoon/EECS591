@@ -70,7 +70,7 @@ if __name__ == '__main__':
     evaluator = Evaluator(before_start_time, before_end_time)
     average_latency_before_greedy, _ = evaluator.evaluate()
     greedy = GreedyReplication()
-    greedy.last_timestamp = before_end_time
+    greedy.last_timestamp = before_start_time
     greedy.run_replication()
 
     after_start_time, after_end_time = replay_log.simulate_requests('dataset/synthetic/01_random_replication/access_log.txt', False, False)
@@ -96,8 +96,10 @@ if __name__ == '__main__':
     # before_start_time, before_end_time = replay_log.simulate_requests('dataset/synthetic/03_real_time_algorithm/access_log.txt', args['disable_concurrency'])
     evaluator = Evaluator(before_start_time, before_end_time)
     average_latency_before_greedy, _ = evaluator.evaluate()
+
+    print '************************* Running SIMPLE_CENTRALIZED_GREEDY *************************'
     simple_centralized_greedy = SimpleCentralizedGreedy()
-    simple_centralized_greedy.last_timestamp = before_end_time
+    simple_centralized_greedy.last_timestamp = before_start_time
     simple_centralized_greedy.execute()
 
     after_start_time, after_end_time = replay_log.simulate_requests('dataset/synthetic/01_random_replication/access_log.txt', False, False)
