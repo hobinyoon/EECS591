@@ -28,6 +28,9 @@ UPLOAD_FOLDER = 'uploaded/'
 SERVER_LIST_FILE = 'servers.txt'
 LOG_DIRECTORY = 'logs'
 SERVER_CONFIG_FILE = 'server.cnf'
+DIST_GREEDY = 'greedy'
+DIST_HEURISTIC = 'heuristic'
+USE_DIST_REPLICATION = 'use_dist_replication'
 
 # Setup for the app
 app = Flask(__name__)
@@ -75,7 +78,7 @@ def read_file():
 
     file_path = os.path.join(UPLOAD_FOLDER, secure_filename(filename))
     if (metadata.file_exists_on_server(filename, app.config['HOST']) is not None):
-        if app.config['use_dist_replication']:
+        if app.config[USE_DIST_REPLICATION] == DIST_HEURISTIC:
             metadata.add_concurrent_request(filename, ip_address)
             distributed_replication(filename, ip_address, delay_time, metadata)
             # remove the number of concurrent requests to the file
@@ -97,19 +100,29 @@ def read_file():
         if (len(other_servers) > 0):
             for server in other_servers:
                 url = 'http://%s/file_exists?%s' % (server, urllib.urlencode({ 'uuid': filename }))
+                print 'url: ' + url
                 lookup_request = requests.get(url)
                 if (lookup_request.status_code == requests.codes.ok):
-                    redirect_url = 'http://%s/read?%s' % (server, urllib.urlencode(redirect_args))
-
                     # Update metadata - this might be a little inefficient right now, but want to avoid infinite redirects by
                     # using file_exists
                     update_metadata_from_another_server(server, filename)
-    else:
-        redirect_url = 'http://%s/read?%s' % (redirect_address, urllib.urlencode(redirect_args))
+                    redirect_address = server
+    redirect_url = 'http://%s/read?%s' % (redirect_address, urllib.urlencode(redirect_args))
 
     if redirect_url is not None:
         logger.log(filename, ip_address, source_uuid, host_address, 'READ', requests.codes.found, -1)
-        print 'Redirecting to: ' + redirect_url
+        # We need to greedily replicate
+        if app.config[USE_DIST_REPLICATION] == DIST_GREEDY and metadata.file_exists_on_server(filename, app.config['HOST']) is None:
+            replicate_args = { 'uuid': filename, 'ip': ip_address, 'replication_method': 'DISTRIBUTED_REPLICATE', 'destination': app.config['HOST'] }
+            replicate_url = 'http://%s/replicate?%s' % (redirect_address, urllib.urlencode(replicate_args))
+            print 'Redirecting to: ' + replicate_url
+            r = requests.put(replicate_url)
+            if r.status_code == requests.codes.ok:
+              file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+              metadata.update_file_stored(filename, app.config['HOST'], get_file_size(file_path))
+              return send_from_directory(UPLOAD_FOLDER, secure_filename(filename))
+            else:
+              raise Exception('greedy replication failed.')
         return redirect(redirect_url, code=requests.codes.found)
 
     logger.log(filename, ip_address, source_uuid, host_address, 'READ', requests.codes.not_found, -1)
@@ -154,7 +167,8 @@ def replicate():
     ip_address = request.args.get('ip') if 'ip' in request.args else request.remote_addr
     file_uuid = request.args.get('uuid')
     destination = request.args.get('destination')
-    return clone_file(file_uuid, destination, 'REPLICATE', ip_address)
+    replication_method = request.args.get('replication_method') if 'replication_method' in request.args else 'REPLICATE'
+    return clone_file(file_uuid, destination, replication_method, ip_address)
 
 # Deletes the file. This API call should not be open to all users.
 @app.route('/delete', methods=['DELETE'])
@@ -374,12 +388,12 @@ if __name__ == '__main__':
     parser.add_argument('--port', help='the port for deployment')
     parser.add_argument('--processes', help='specify the number of processes to start the server with')
     parser.add_argument('--with-debug', action='store_true', help='starts the server with debug mode')
-    parser.add_argument('--use-dist-replication', action='store_true', help='enables the distributed replication')
+    parser.add_argument('--use-dist-replication', choices=[DIST_HEURISTIC, DIST_GREEDY], help='enables the distributed replication')
     parser.add_argument('--clear-metadata', action='store_true', help='the server should clear the metadata upon starting')
 
     args = vars(parser.parse_args())
     server_list_file = args['serverlist']
-    app.config['use_dist_replication'] = args['use_dist_replication']
+    app.config[USE_DIST_REPLICATION] = args[USE_DIST_REPLICATION]
 
     # Populate when there are arguments
     if args['host'] is not None:
