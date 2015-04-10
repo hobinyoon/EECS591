@@ -102,6 +102,18 @@ class Aggregator:
     self.update_aggregated_logs('update')
     return self.log_mgr.get_movings(start_timestamp, end_timestamp)
 
+  # Retrive log on redirect (read with 302) in a specified time period
+  #
+  # params:
+  #   start_timestamp: returned logs start from this integer timestamp
+  #   end_timestamp: returned logs end by this integer timestamp
+  # return val:
+  #   list of tuples
+  def get_redirect_log_entries(self, start_timestamp = None, end_timestamp = None):
+    # to get latest logs, update first
+    self.update_aggregated_logs('update')
+    return self.log_mgr.get_redirects(start_timestamp, end_timestamp)
+
 if __name__ == '__main__':
   # Parse arguments for app
   parser = argparse.ArgumentParser(description='Aggregator CLI for EECS591.')

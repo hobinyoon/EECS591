@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), 'ag
 import util
 from aggregator import Aggregator
 
-class GreedyReplication:
+class SimpleCentralizedGreedy:
 
   def __init__(self):
     self.aggregator = Aggregator() # to retrive server logs
@@ -56,9 +56,7 @@ class GreedyReplication:
   def replicate(self, content, source, dest):
     print 'Greedy: replicate file %s from %s to %s', (content, source, dest)
     if source == dest:
-      if dest not in self.replica_map[content]:
-        self.replica_map[content] = 0
-      self.replica_map[content][dest] += 1
-    else:
-      util.replicate(content, source, dest)
+      # a server can have at most one replcia, se we replicate to second nearest server
+      dest = util.find_closest_servers_with_ip(target, self.server_set - set(self.replica_map[content]))[0]
+    util.replicate(content, source, dest)
 
