@@ -28,8 +28,8 @@ UPLOAD_FOLDER = 'uploaded/'
 SERVER_LIST_FILE = 'servers.txt'
 LOG_DIRECTORY = 'logs'
 SERVER_CONFIG_FILE = 'server.cnf'
-DISTRIBUTED_GREEDY = 'greedy'
-DISTRIBUTED_REPLICATE = 'heuristic'
+DIST_GREEDY = 'greedy'
+DIST_HEURISTIC = 'heuristic'
 USE_DIST_REPLICATION = 'use_dist_replication'
 
 # Setup for the app
@@ -78,7 +78,7 @@ def read_file():
 
     file_path = os.path.join(UPLOAD_FOLDER, secure_filename(filename))
     if (metadata.file_exists_on_server(filename, app.config['HOST']) is not None):
-        if app.config[USE_DIST_REPLICATION] == DISTRIBUTED_REPLICATE:
+        if app.config[USE_DIST_REPLICATION] == DIST_HEURISTIC:
             metadata.add_concurrent_request(filename, ip_address)
             distributed_replication(filename, ip_address, delay_time, metadata)
             # remove the number of concurrent requests to the file
@@ -112,8 +112,8 @@ def read_file():
     if redirect_url is not None:
         logger.log(filename, ip_address, source_uuid, host_address, 'READ', requests.codes.found, -1)
         # We need to greedily replicate
-        if app.config[USE_DIST_REPLICATION] == DISTRIBUTED_GREEDY and metadata.file_exists_on_server(filename, app.config['HOST']) is None:
-            replicate_args = { 'uuid': filename, 'ip': ip_address, 'replication_method': DISTRIBUTED_GREEDY, 'destination': app.config['HOST'] }
+        if app.config[USE_DIST_REPLICATION] == DIST_GREEDY and metadata.file_exists_on_server(filename, app.config['HOST']) is None:
+            replicate_args = { 'uuid': filename, 'ip': ip_address, 'replication_method': 'DISTRIBUTED_REPLICATE', 'destination': app.config['HOST'] }
             replicate_url = 'http://%s/replicate?%s' % (redirect_address, urllib.urlencode(replicate_args))
             print 'Redirecting to: ' + replicate_url
             r = requests.put(replicate_url)
@@ -122,7 +122,7 @@ def read_file():
               metadata.update_file_stored(filename, app.config['HOST'], get_file_size(file_path))
               return send_from_directory(UPLOAD_FOLDER, secure_filename(filename))
             else:
-              raise exception('greedy replication failed.')
+              raise Exception('greedy replication failed.')
         return redirect(redirect_url, code=requests.codes.found)
 
     logger.log(filename, ip_address, source_uuid, host_address, 'READ', requests.codes.not_found, -1)
@@ -364,7 +364,7 @@ def distributed_replication(filename, ip_address, delay_time, metadata):
             response = requests.get(url)
             if response.status_code == requests.codes.ok:
                 # 3) Copy the file to that server.
-                clone_file(request.args.get('uuid'), target_server, DISTRIBUTED_REPLICATE, ip_address)
+                clone_file(request.args.get('uuid'), target_server, 'DISTRIBUTED_REPLICATE', ip_address)
     else:
         raise Exception('Something fishy is going on... Should have at least one request')
 
@@ -385,7 +385,7 @@ if __name__ == '__main__':
     parser.add_argument('--port', help='the port for deployment')
     parser.add_argument('--processes', help='specify the number of processes to start the server with')
     parser.add_argument('--with-debug', action='store_true', help='starts the server with debug mode')
-    parser.add_argument('--use-dist-replication', choices=[DISTRIBUTED_REPLICATE, DISTRIBUTED_GREEDY], help='enables the distributed replication')
+    parser.add_argument('--use-dist-replication', choices=[DIST_HEURISTIC, DIST_GREEDY], help='enables the distributed replication')
     parser.add_argument('--clear-metadata', action='store_true', help='the server should clear the metadata upon starting')
 
     args = vars(parser.parse_args())
