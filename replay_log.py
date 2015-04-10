@@ -124,5 +124,7 @@ def simulate_requests(request_log_file, enable_concurrency = True, allow_writes 
     os.makedirs(CLIENT_DOWNLOAD_FOLDER)
   start_time = int(time.time())
   replay_log(request_log_file, enable_concurrency, allow_writes)
+  # wait a second to make sure that the end timestamp is at least 1 second AFTER last request
+  time.sleep(1)
   end_time = int(time.time())
   return (start_time, end_time)
