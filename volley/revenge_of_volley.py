@@ -1,0 +1,434 @@
+# Implementation of Volley
+import geopy
+import json
+import math
+import operator
+import os
+import requests
+import sqlite3
+import sys
+import time
+import urllib
+
+from geopy.distance import great_circle
+
+# Project Imports
+up_one_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..')
+sys.path.insert(0, up_one_dir)
+sys.path.insert(0, os.path.join(up_one_dir, 'cache'))
+sys.path.insert(0, os.path.join(up_one_dir, 'aggregator'))
+import ip_location_cache
+from log_manager import LogManager
+import util
+
+# Configurable Constants
+ITERATIONS = 5
+KAPPA = 0.5
+
+class RevengeOfVolley:
+
+  def __init__(self, start_time = 0, end_time = int(time.time())):
+    self.log_manager = LogManager(start_time, end_time)
+    self.ip_cache = ip_location_cache.ip_location_cache()
+
+    # for now, get from logs. maybe use aggregator to make these calls later?
+    self.servers = self.log_manager.get_unique_destinations()
+
+    self.uuid_to_clients = {}               # dictionary mapping uuid -> set([{ location: (lat, long), request_count: 5 }])
+    self.uuid_to_server_ranking = {}  # dictionary mapping uuid -> list of servers (most requests made from locations closest to that server first)
+    self.uuid_metadata = {}                 # dictionary mapping uuid -> metadata (includes state-ful data)
+
+  # Execute Volley algorithm
+  def execute(self):
+    locations_by_uuid = self.place_initial()
+    locations_by_uuid = self.reduce_latency(locations_by_uuid)
+    placements_by_server = self.collapse_to_datacenters(locations_by_uuid)
+    self.migrate_to_locations(placements_by_server)
+    print 'Volley execution complete!'
+
+  # PHASE 1: Compute Initial Placement
+  def place_initial(self):
+    uuids = self.log_manager.get_unique_uuids()
+
+    locations_by_uuid = {}
+
+    for uuid in uuids:
+      self.populate_uuid_to_server_ranking(uuid)
+
+      number_of_replicas = 1
+
+      while True:
+        for i in range(0, number_of_replicas):
+          # set location at first server
+          self.uuid_to_server_ranking[uuid][i]
+      locations_by_uuid[uuid] = self.find_centroids(uuid)
+
+    return locations_by_uuid
+
+  # PHASE 2: Iteratively Move Data to Reduce Latency
+  def reduce_latency(self, locations_by_uuid):
+    for i in range(ITERATIONS):
+      for uuid, locations in locations_by_uuid.iteritems():
+        uuid_to_interdependencies = self.log_manager.get_interdependency_grouped_by_uuid(uuid)
+
+        for tuple in uuid_to_interdependencies:
+          other_item_uuid = tuple[0]
+          other_item_location = locations_by_uuid[other_item_uuid]
+          request_count = tuple[1]
+          distance = util.get_distance(location, other_item_location)
+          weight = 1 / (1 + (KAPPA * distance * request_count))
+          location = self.interp(weight, location, other_item_location)
+
+        locations_by_uuid[uuid] = location
+
+    return locations_by_uuid
+
+  # PHASE 3: Iteratively Collapse Data to Datacenters
+  def collapse_to_datacenters(self, locations_by_uuid):
+    placements_by_server = {}
+
+    for server in self.servers:
+      placements_by_server[server] = []
+
+    for uuid, location in locations_by_uuid.iteritems():
+      metadata = {'current_server': None, 'optimal_location': location, 'uuid': uuid, 'dist': None, 'file_size': None, 'request_count': None}
+      best_server = None
+
+      # Query any server for metadata - server will update and get information
+      any_server = util.convert_to_local_hostname(self.servers[0])
+      url = 'http://%s/metadata?%s' % (any_server, urllib.urlencode({ 'uuid': uuid }))
+      print url
+      r = requests.get(url)
+      print r.text
+      response = json.loads(r.text)
+      metadata['current_server'] = response['server']
+      metadata['file_size'] = response['file_size']
+      metadata['request_count'] = self.log_manager.successful_read_count(uuid)
+
+      best_servers = self.find_closest_servers(location)
+      best_server = best_servers[0]
+      metadata['dist'] = best_server['distance']
+
+      self.uuid_metadata[uuid] = metadata
+      placements_by_server[best_server['server']].append(uuid)
+
+    placements_by_server = self.redistribute_server_data_by_capacity(placements_by_server)
+
+    return placements_by_server
+
+  # PHASE 4: Call migration methods on each server
+  def migrate_to_locations(self, placements_by_server):
+    for optimal_server, uuids in placements_by_server.iteritems():
+      for uuid in uuids:
+        current_server = self.uuid_metadata[uuid]['current_server']
+
+        # conver to local hostname in case of simulation
+        current_server = util.convert_to_local_hostname(current_server)
+        optimal_server = util.convert_to_local_hostname(optimal_server)
+
+        if current_server != optimal_server:
+          url = 'http://%s/transfer?%s' % (current_server, urllib.urlencode({ 'uuid': uuid, 'destination': optimal_server }))
+          print url
+          r = requests.put(url, timeout=30)
+          if r.status_code == requests.codes.ok:
+            print 'SUCCESS: Migrating ' + uuid + ' from <' + current_server + '> to <' + optimal_server + '>'
+          else:
+            raise Exception('FAILED: Migrating ' + uuid + ' from <' + current_server + '> to <' + optimal_server + '>')
+
+  # Gets sort key for sort function to sort by ascending request_count
+  def get_sort_key_by_request_count(self, uuid):
+    return self.uuid_metadata[uuid]['request_count']
+
+  # Gets sort key for sort function to sort by ascending distance
+  def get_distance_key(self, server_dict):
+    return server_dict['distance']
+
+  # Finds the closest server for a lat/long tuple pair
+  #
+  # params:
+  #   location: lat/long tuple
+  #   servers_to_search: a list of servers to search. Uses self.servers by default.
+  # returns: list of closest to furthest, where each item is a dict with `server` and `distance`
+  def find_closest_servers(self, location, servers_to_search = None):
+    if servers_to_search is None:
+      servers_to_search = self.servers
+
+    best_servers = []
+
+    for server in servers_to_search:
+      server_dict = { 'server': server, 'distance': None }
+      item_location = geopy.Point(location[0], location[1])
+      server_lat_lon = self.ip_cache.get_lat_lon_from_ip(server)
+      if server_lat_lon is None:
+        raise ValueError('Server <' + server + '> latitude/longitude could not be found!')
+      server_location = geopy.Point(server_lat_lon[0], server_lat_lon[1])
+      server_dict['distance'] = great_circle(item_location, server_location).km
+
+      best_servers.append(server_dict)
+
+    best_servers.sort(key=self.get_distance_key)
+
+    return best_servers
+
+  # Check capacity of server
+  #
+  # params:
+  #   server: hostname of server to check
+  def total_server_capacity(self, server):
+    server = util.convert_to_local_hostname(server)
+
+    url = 'http://%s/capacity?%s' % (server, urllib.urlencode({ 'file_size': 0 }))
+    r = requests.get(url, timeout=30)
+    return float(r.text)
+
+  # Check capacity and redistribute data to each server
+  #
+  # params:
+  #   placements_by_server: dictionary mapping server hostname -> set of uuids
+  def redistribute_server_data_by_capacity(self, placements_by_server):
+    space_remaining = {}
+    servers_with_capacity = set()
+    servers_over_capacity = set()
+
+    for server in self.servers:
+      space_remaining[server] = self.total_server_capacity(server)
+
+      placements = placements_by_server[server]
+
+      for uuid in placements:
+        metadata = self.uuid_metadata[uuid]
+        space_remaining[server] -= metadata['file_size']
+
+      if space_remaining[server] > 0:
+        servers_with_capacity.add(server)
+      else:
+        servers_over_capacity.add(server)
+
+    for server in servers_over_capacity:
+      placements = placements_by_server[server]
+      placements.sort(key=self.get_sort_key_by_request_count)
+
+      # move top uuids to nearest locations (or second-nearest, etc if other servers are full)
+      # until server is no longer over capacity
+      while space_remaining[server] < 0:
+        uuid = placements.pop()
+        metadata = self.uuid_metadata[uuid]
+        best_servers = self.find_closest_servers(metadata['optimal_location'], servers_with_capacity)
+
+        for i, best_server_info in enumerate(best_servers):
+          best_server = best_server_info['server']
+          if space_remaining[best_server] >= metadata['file_size']:
+            space_remaining[best_server] -= metadata['file_size']
+            placements_by_server[best_server].append(uuid)
+            break
+          if i == (len(best_servers) - 1):   # haven't found a server on the last iteration
+            raise ValueError("There is too much data for the servers' storage capacity to handle.")
+
+        space_remaining[server] += metadata['file_size']
+
+        print 'PLACEMENTS: ' + str(placements)
+
+    return placements_by_server
+
+  # Convert from latitude to radians from the North Pole
+  def convert_lat_to_radians(self, lat):
+    # Subtract 90 to make range [-180, 0], then negate to make it [0, 180]
+    degrees_from_north_pole = (lat - 90) * -1;
+
+    return math.radians(degrees_from_north_pole)
+
+  # Convert longitude to radians
+  def convert_lng_to_radians(self, lng):
+    # Add 180 to make range [0, 360]
+    # lng = lng + 180
+    return math.radians(lng)
+
+  # Convert from radians from the North Pole to degrees
+  def convert_lat_to_degrees(self, lat):
+    degrees_from_north_pole = math.degrees(lat)
+    degrees_from_equator = (degrees_from_north_pole * -1) + 90
+
+    return degrees_from_equator
+
+  # Convert longitude to degrees
+  def convert_lng_to_degrees(self, lng):
+    # lng = math.degrees(lng)
+    # return lng - 180
+    return math.degrees(lng)
+
+  # Normalize radian values from [-Inf, Inf] to specified range - default = [0, 2pi)
+  def normalize_radians(self, lng, min_val = 0, max_val = (2 * math.pi)):
+    if math.fabs(max_val - min_val - (2 * math.pi)) >= 0.001:
+      raise ValueError('Range for function must be around 2*pi.')
+    while lng < min_val:
+      lng = lng + (2 * math.pi)
+    while lng >= max_val:
+      lng = lng - (2 * math.pi)
+    return lng
+
+  # Find the average longitude of two points where longitude is given from [0, Inf]
+  def find_avg_lng(self, lng_a, lng_b):
+    # Need to normalize to [0, 2pi) so that arithmetic mean comes out to a reasonable value
+    lng_a = self.normalize_radians(lng_a)
+    lng_b = self.normalize_radians(lng_b)
+
+    # Here, normalize to [-pi, pi) for longitude
+    return self.normalize_radians((lng_a + lng_b) / 2, -1 * math.pi, math.pi)
+
+  # Helper for find_centroids, defined in Volley paper as weighted_spherical_mean
+  #
+  # params:
+  #   weight: weight for interpolation
+  #   loc_a: lat/lng for location A
+  #   loc_b: lat/lng for location B
+  def interp(self, weight, loc_a, loc_b):
+    lat_a = self.convert_lat_to_radians(loc_a[0])
+    lng_a = self.convert_lng_to_radians(loc_a[1])
+    lat_b = self.convert_lat_to_radians(loc_b[0])
+    lng_b = self.convert_lng_to_radians(loc_b[1])
+
+    d_first = math.cos(lat_a) * math.cos(lat_b)
+    d_second = math.sin(lat_a) * math.sin(lat_b) * math.cos(lng_b - lng_a)
+    d = math.acos(d_first + d_second)
+
+    gamma_numerator = math.sin(lat_b) * math.sin(lat_a) * math.sin(lng_b - lng_a)
+    gamma_denominator = math.cos(lat_a) - (math.cos(d) * math.cos(lat_b))
+    gamma = math.atan2(gamma_numerator, gamma_denominator)
+
+    beta_numerator = math.sin(lat_b) * math.sin(weight * d) * math.sin(gamma)
+    beta_denominator = math.cos(weight * d) - (math.cos(lat_a) * math.cos(lat_b))
+    beta = math.atan2(beta_numerator, beta_denominator)
+
+    lat_c_first = math.cos(weight * d) * math.cos(lat_b)
+    lat_c_second = math.sin(weight * d) * math.sin(lat_b) * math.cos(gamma)
+    lat_c = math.acos(lat_c_first + lat_c_second)
+    lat_c = self.convert_lat_to_degrees(lat_c)
+
+    # Find an average of coming from either direction for antipodal nodes
+    lng_c_1 = lng_b - beta
+    lng_c_2 = lng_a + beta
+    lng_c = self.find_avg_lng(lng_c_1, lng_c_2)
+    lng_c = self.convert_lng_to_degrees(lng_c)
+
+    print 'weight:' + str(weight)
+    print 'loc_a:' + str(loc_a)
+    print 'loc_b:' + str(loc_b)
+    print (lat_c, lng_c)
+
+    return (lat_c, lng_c)
+
+  # Recursive helper for find_centroids
+  #
+  # params:
+  #   weights: a list of weights
+  #   locations: a list of latitude/longitude tuples for clients, has same cardinality as weights
+  def find_centroids_helper(self, total_weight, weights, locations):
+    if len(weights) != len(locations):
+      raise ValueError('Weights and locations must have the same length.')
+
+    length = len(weights)
+
+    current_weight = float(weights.pop())
+    weight = current_weight / total_weight
+    location = locations.pop()
+
+    if length == 1:
+      return location
+
+    return self.interp(weight, location, self.find_centroids_helper(total_weight, weights, locations))
+
+  # Find the weighted spherical mean locations for a data item
+  #
+  # params:
+  #   uuid: uuid of the data item
+  def find_centroids(self, uuid):
+    request_logs = self.log_manager.get_reads_grouped_by_source(uuid)
+    if len(request_logs) == 0:
+      return None
+
+    self.uuid_to_server_ranking[uuid] = []
+    self.uuid_to_clients[uuid] = {}
+    requests_per_server = {}
+
+    for req in request_logs:
+      client_loc = self.ip_cache.get_lat_lon_from_ip(req[0])
+      if client_loc is None:
+        raise NameError('Could not find client ' + req[0] + ' in client DB.')
+      request_count = int(req[1])
+      self.uuid_to_clients[uuid][req[0]] = { 'location': client_loc, 'request_count': request_count }
+      closest_server_to_client_list = self.find_closest_servers(client_loc, self.servers)
+      closest_server_to_client = closest_server_to_client_list[0]['server']
+      if closest_server_to_client not in requests_per_server:
+        requests_per_server[closest_server_to_client] = 0
+      requests_per_server[closest_server_to_client] += request_count
+
+    sorted_server_tuples_list = sorted(requests_per_server.items(), key=operator.itemgetter(1))
+    self.uuid_to_server_ranking[uuid] = [ server_tuple[0] for server_tuple in sorted_server_tuples_list ]
+
+    number_of_centroids = 1
+
+    while True:
+      centroids = set()
+
+      server_locations = []
+      for i in range(number_of_centroids):
+        if i >= len(self.uuid_to_server_ranking[uuid]):
+          break
+        server_locations.append(self.uuid_to_server_ranking[uuid][i])
+
+      servers_to_weights_and_locations = {}
+
+      total_cumulative_distance_to_ideal_server = 0
+
+      # partition to servers closest to each server
+      for uuid, client_info in self.uuid_to_clients.iteritems():
+        for client, client_dict in client_info.iteritems():
+          closest_servers = self.find_closest_servers(client_dict['location'], server_locations)
+          closest_server = closest_servers[0]['server']
+          closest_server_location = self.ip_cache.get_lat_lon_from_ip(closest_server)
+
+          ideal_servers = self.find_closest_servers(client_dict['location'], self.servers)
+          ideal_server = ideal_servers[0]['server']
+          ideal_server_location = self.ip_cache.get_lat_lon_from_ip(ideal_server)
+
+          if closest_server not in servers_to_weights_and_locations:
+            servers_to_weights_and_locations[closest_server] = { 'weights': [], 'locations': [], 'total_weight': 0 }
+          servers_to_weights_and_locations[closest_server]['weights'].append(client_dict['request_count'])
+          servers_to_weights_and_locations[closest_server]['locations'].append(client_dict['location'])
+          total_cumulative_distance_to_ideal_server += client_dict['request_count'] * util.get_distance(client_dict['location'], ideal_server_location)
+          servers_to_weights_and_locations[closest_server]['total_weight'] += client_dict['request_count']
+
+      total_cumulative_distance_to_centroids = 0
+
+      for server, server_dict in servers_to_weights_and_locations.iteritems():
+        print server_dict
+        centroid = self.find_centroids_helper(server_dict['total_weight'], list(server_dict['weights']), list(server_dict['locations']))
+        centroids.add(centroid)
+
+        for i in range(len(server_dict['weights'])):
+          total_cumulative_distance_to_centroids += server_dict['weights'][i] * util.get_distance(server_dict['locations'][i], centroid)
+
+      # Check if (weighted avg dist to closest server + 1)/(weighted avg dist to closest centroid + 1) < 0.5, or k >= number_of_servers
+      print 'total_cumulative_distance_to_ideal_server: ' + str(total_cumulative_distance_to_ideal_server)
+      print 'total_cumulative_distance_to_centroids: ' + str(total_cumulative_distance_to_centroids)
+
+      ratio = float(total_cumulative_distance_to_ideal_server) / float(total_cumulative_distance_to_centroids)
+      print 'ratio: ' + str(ratio)
+
+      if ratio >= 0.5 or number_of_centroids >= len(self.servers):
+        break
+
+      number_of_centroids += 1
+
+    return centroids
+
+if __name__ == '__main__':
+  # if (len(sys.argv) < 3):
+  #   print 'Usage: python volley.py 1426809600 1427395218'
+  #   print 'Integers are Unix timestamps for start and end times to retrieve log data'
+  #   exit(1)
+  # start_time = sys.argv[1]
+  # end_time = sys.argv[2]
+  rov = RevengeOfVolley(1428788390, 1428788398)
+  print rov.find_centroids(1)
+  # rov.execute()
