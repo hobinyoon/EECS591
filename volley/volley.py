@@ -30,8 +30,9 @@ class Volley:
     self.log_manager = LogManager(start_time, end_time)
     self.ip_cache = ip_location_cache.ip_location_cache()
 
-    # for now, get from logs. maybe use aggregator to make these calls later?
-    self.servers = self.log_manager.get_unique_destinations()
+    self.servers = []
+    for server in util.retrieve_server_list():
+      self.servers.append(util.convert_to_simulation_ip(server))
 
     self.uuid_metadata = {}     # dictionary mapping uuid -> metadata (includes state-ful data)
 
@@ -57,7 +58,6 @@ class Volley:
 
   # PHASE 2: Iteratively Move Data to Reduce Latency
   def reduce_latency(self, locations_by_uuid):
-
     for i in range(INTERDEPENDENCY_ITERATIONS):
       for uuid, location in locations_by_uuid.iteritems():
         uuid_to_interdependencies = self.log_manager.get_interdependency_grouped_by_uuid(uuid)
@@ -85,7 +85,7 @@ class Volley:
       metadata = {'current_server': None, 'optimal_location': location, 'uuid': uuid, 'dist': None, 'file_size': None, 'request_count': None}
       best_server = None
 
-      # Query any server for metadata - server will update and get information 
+      # Query any server for metadata - server will update and get information
       any_server = util.convert_to_local_hostname(self.servers[0])
       url = 'http://%s/metadata?%s' % (any_server, urllib.urlencode({ 'uuid': uuid }))
       print url
@@ -225,9 +225,10 @@ class Volley:
   # Convert from latitude to radians from the North Pole
   def convert_lat_to_radians(self, lat):
     # Subtract 90 to make range [-180, 0], then negate to make it [0, 180]
-    degrees_from_north_pole = (lat - 90) * -1;
+    # degrees_from_north_pole = (lat - 90) * -1;
 
-    return math.radians(degrees_from_north_pole)
+    # return math.radians(degrees_from_north_pole)
+    return math.radians(lat)
 
   # Convert longitude to radians
   def convert_lng_to_radians(self, lng):
@@ -237,10 +238,11 @@ class Volley:
 
   # Convert from radians from the North Pole to degrees
   def convert_lat_to_degrees(self, lat):
-    degrees_from_north_pole = math.degrees(lat)
-    degrees_from_equator = (degrees_from_north_pole * -1) + 90
+    # degrees_from_north_pole = math.degrees(lat)
+    # degrees_from_equator = (degrees_from_north_pole * -1) + 90
 
-    return degrees_from_equator
+    # return degrees_from_equator
+    return math.degrees(lat)
 
   # Convert longitude to degrees
   def convert_lng_to_degrees(self, lng):
@@ -304,32 +306,44 @@ class Volley:
 
     return (lat_c, lng_c)
 
-  # Recursive helper for weighted_spherical_mean
+  # Helper for weighted_spherical_mean
+  # Found at: http://www.geomidpoint.com/calculation.html
   #
   # params:
   #   weights: a list of weights
   #   locations: a list of latitude/longitude tuples for clients, has same cardinality as weights
-  def weighted_spherical_mean_helper(self, total_weight, weights, locations):
-    if len(weights) != len(locations):
-      raise ValueError('Weights and locations must have the same length.')
+  def weighted_spherical_mean_helper(self, weights, locations):
+    cartesian_locations = []
 
-    length = len(weights)
+    total_x = 0
+    total_y = 0
+    total_z = 0
 
-    # print '------ Weighted spherical mean -------- '
-    # print 'Length: ' + str(length)
-    # print 'WEIGHTS: ' + str(weights)
-    # print 'LOCATIONS: ' + str(locations)
+    for i, location in enumerate(locations):
+      lat_radians = self.convert_lat_to_radians(location[0])
+      lng_radians = self.convert_lng_to_radians(location[1])
+      x = math.cos(lat_radians) * math.cos(lng_radians)
+      y = math.cos(lat_radians) * math.sin(lng_radians)
+      z = math.sin(lat_radians)
 
-    current_weight = float(weights.pop())
-    weight = current_weight / total_weight
-    location = locations.pop()
+      total_x += x
+      total_y += y
+      total_z += z
 
-    # print 'current_weight: ' + str(weight)
+    total_weight = float(sum(weights))
 
-    if length == 1:
-      return location
+    average_x = total_x / total_weight
+    average_y = total_y / total_weight
+    average_z = total_z / total_weight
 
-    return self.interp(weight, location, self.weighted_spherical_mean_helper(total_weight, weights, locations))
+    hyp = math.sqrt((average_x * average_x) + (average_y * average_y))
+    result_lat_radians = math.atan2(average_z, hyp)
+    result_lng_radians = math.atan2(average_y, average_x)
+
+    result_lat = self.convert_lat_to_degrees(result_lat_radians)
+    result_lng = self.convert_lng_to_degrees(result_lng_radians)
+
+    return (result_lat, result_lng)
 
   # Find the weighted spherical mean location for a data item
   #
@@ -350,8 +364,7 @@ class Volley:
       locations.append(client_loc)
       weights.append(req[1])
 
-    total_weight = float(sum(weights))
-    return self.weighted_spherical_mean_helper(total_weight, weights, locations)
+    return self.weighted_spherical_mean_helper(weights, locations)
 
 if __name__ == '__main__':
   if (len(sys.argv) < 3):
