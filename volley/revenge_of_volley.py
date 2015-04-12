@@ -24,6 +24,7 @@ import util
 # Configurable Constants
 ITERATIONS = 5
 KAPPA = 0.5
+GV_RATIO_THRESHOLD = 0.5
 
 class RevengeOfVolley:
 
@@ -47,7 +48,7 @@ class RevengeOfVolley:
     self.reduce_latency()
     self.collapse_to_datacenters()
     self.migrate_to_locations()
-    print 'Volley execution complete!'
+    print 'Revenge of Volley execution complete!'
 
   # PHASE 1: Compute Initial Placement
   def place_initial(self):
@@ -130,8 +131,6 @@ class RevengeOfVolley:
         optimal_server = util.convert_to_local_hostname(optimal_server)
 
         if optimal_server != current_server:
-          print 'UUID_TO_SERVERS: ' + str(self.uuid_to_servers[uuid])
-          print 'current_server: ' + util.convert_to_simulation_ip(current_server)
           if util.convert_to_simulation_ip(current_server) in self.uuid_to_servers[uuid]:
             url = 'http://%s/replicate?%s' % (current_server, urllib.urlencode({ 'uuid': uuid, 'destination': optimal_server }))
           else:
@@ -317,10 +316,10 @@ class RevengeOfVolley:
     lng_c = self.find_avg_lng(lng_c_1, lng_c_2)
     lng_c = self.convert_lng_to_degrees(lng_c)
 
-    print 'weight:' + str(weight)
-    print 'loc_a:' + str(loc_a)
-    print 'loc_b:' + str(loc_b)
-    print (lat_c, lng_c)
+    # print 'weight:' + str(weight)
+    # print 'loc_a:' + str(loc_a)
+    # print 'loc_b:' + str(loc_b)
+    # print (lat_c, lng_c)
 
     return (lat_c, lng_c)
 
@@ -422,7 +421,6 @@ class RevengeOfVolley:
       total_cumulative_distance_to_centroids = 0
 
       for server, server_dict in servers_to_weights_and_locations.iteritems():
-        print server_dict
         centroid = self.weighted_spherical_mean(list(server_dict['weights']), list(server_dict['locations']))
         centroids.add(centroid)
 
@@ -430,15 +428,9 @@ class RevengeOfVolley:
           total_cumulative_distance_to_centroids += server_dict['weights'][i] * util.get_distance(server_dict['locations'][i], centroid)
 
       # Check if (weighted avg dist to closest server + 1)/(weighted avg dist to closest centroid + 1) < 0.5, or k >= number_of_servers
-      print 'total_cumulative_distance_to_ideal_server: ' + str(total_cumulative_distance_to_ideal_server)
-      print 'total_cumulative_distance_to_centroids: ' + str(total_cumulative_distance_to_centroids)
+      greedy_volley_ratio = float(total_cumulative_distance_to_ideal_server) / float(total_cumulative_distance_to_centroids)
 
-      ratio = float(total_cumulative_distance_to_ideal_server) / float(total_cumulative_distance_to_centroids)
-      print 'ratio: ' + str(ratio)
-
-      print 'centroids: ' + str(centroids)
-
-      if ratio >= 0.5 or number_of_centroids >= len(self.servers):
+      if greedy_volley_ratio >= GV_RATIO_THRESHOLD or number_of_centroids >= len(self.servers):
         break
 
       number_of_centroids += 1
@@ -447,7 +439,7 @@ class RevengeOfVolley:
 
 if __name__ == '__main__':
   if (len(sys.argv) < 3):
-    print 'Usage: python volley.py 1426809600 1427395218'
+    print 'Usage: python revenge_of_volley.py 1426809600 1427395218'
     print 'Integers are Unix timestamps for start and end times to retrieve log data'
     exit(1)
   start_time = sys.argv[1]
