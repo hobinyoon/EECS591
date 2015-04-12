@@ -34,64 +34,62 @@ class RevengeOfVolley:
     # for now, get from logs. maybe use aggregator to make these calls later?
     self.servers = self.log_manager.get_unique_destinations()
 
-    self.uuid_to_clients = {}               # dictionary mapping uuid -> set([{ location: (lat, long), request_count: 5 }])
+    self.uuid_to_locations = {}       # dictionary mapping uuid -> optimal locations
+    self.uuid_to_servers = {}         # dictionary mapping uuid -> server locations
+    self.uuid_to_clients = {}         # dictionary mapping uuid -> set([{ location: (lat, long), request_count: 5 }])
     self.uuid_to_server_ranking = {}  # dictionary mapping uuid -> list of servers (most requests made from locations closest to that server first)
-    self.uuid_metadata = {}                 # dictionary mapping uuid -> metadata (includes state-ful data)
+    self.uuid_metadata = {}           # dictionary mapping uuid -> metadata (includes state-ful data)
+    self.placements_by_server = {}    # dictionary mapping server -> uuids
 
   # Execute Volley algorithm
   def execute(self):
-    locations_by_uuid = self.place_initial()
-    locations_by_uuid = self.reduce_latency(locations_by_uuid)
-    placements_by_server = self.collapse_to_datacenters(locations_by_uuid)
-    self.migrate_to_locations(placements_by_server)
+    self.place_initial()
+    self.reduce_latency()
+    self.collapse_to_datacenters()
+    self.migrate_to_locations()
     print 'Volley execution complete!'
 
   # PHASE 1: Compute Initial Placement
   def place_initial(self):
     uuids = self.log_manager.get_unique_uuids()
 
-    locations_by_uuid = {}
-
     for uuid in uuids:
-      self.populate_uuid_to_server_ranking(uuid)
-
-      number_of_replicas = 1
-
-      while True:
-        for i in range(0, number_of_replicas):
-          # set location at first server
-          self.uuid_to_server_ranking[uuid][i]
-      locations_by_uuid[uuid] = self.find_centroids(uuid)
-
-    return locations_by_uuid
+      self.uuid_to_locations[uuid] = self.find_centroids(uuid)
 
   # PHASE 2: Iteratively Move Data to Reduce Latency
-  def reduce_latency(self, locations_by_uuid):
+  def reduce_latency(self):
     for i in range(ITERATIONS):
-      for uuid, locations in locations_by_uuid.iteritems():
+      for uuid, locations in self.uuid_to_locations.iteritems():
         uuid_to_interdependencies = self.log_manager.get_interdependency_grouped_by_uuid(uuid)
 
         for tuple in uuid_to_interdependencies:
           other_item_uuid = tuple[0]
-          other_item_location = locations_by_uuid[other_item_uuid]
+          other_item_locations = self.uuid_to_locations[other_item_uuid]
           request_count = tuple[1]
-          distance = util.get_distance(location, other_item_location)
+
+          # find closest location pair
+          min_distance = None
+          location_pair = None
+
+          for location_index, location in enumerate(locations):
+            for other_item_location in other_item_locations:
+              distance = util.get_distance(location, other_item_location)
+              if min_distance is None or distance < min_distance:
+                min_distance = distance
+                location_pair = (location, other_item_location)
+                selected_location_index = location_index
+
           weight = 1 / (1 + (KAPPA * distance * request_count))
-          location = self.interp(weight, location, other_item_location)
-
-        locations_by_uuid[uuid] = location
-
-    return locations_by_uuid
+          updated_location = self.interp(weight, location_pair[0], location_pair[1])
+          self.uuid_to_locations[uuid][selected_location_index] = updated_location
 
   # PHASE 3: Iteratively Collapse Data to Datacenters
-  def collapse_to_datacenters(self, locations_by_uuid):
-    placements_by_server = {}
-
+  def collapse_to_datacenters(self):
     for server in self.servers:
-      placements_by_server[server] = []
+      self.placements_by_server[server] = []
 
-    for uuid, location in locations_by_uuid.iteritems():
-      metadata = {'current_server': None, 'optimal_location': location, 'uuid': uuid, 'dist': None, 'file_size': None, 'request_count': None}
+    for uuid, locations in self.uuid_to_locations.iteritems():
+      metadata = {'current_server': None, 'optimal_locations': locations, 'uuid': uuid, 'dist': None, 'file_size': None, 'request_count': None}
       best_server = None
 
       # Query any server for metadata - server will update and get information
@@ -105,29 +103,39 @@ class RevengeOfVolley:
       metadata['file_size'] = response['file_size']
       metadata['request_count'] = self.log_manager.successful_read_count(uuid)
 
-      best_servers = self.find_closest_servers(location)
-      best_server = best_servers[0]
-      metadata['dist'] = best_server['distance']
+      remaining_server_list = list(self.servers)
+      result_server_list = []
+
+      for location in locations:
+        best_servers = self.find_closest_servers(location, remaining_server_list)
+        result_server_list.append(best_servers.pop(0)['server'])
 
       self.uuid_metadata[uuid] = metadata
-      placements_by_server[best_server['server']].append(uuid)
+      for result_server in result_server_list:
+        self.placements_by_server[result_server].append(uuid)
+        if uuid not in self.uuid_to_servers:
+          self.uuid_to_servers[uuid] = set()
+        self.uuid_to_servers[uuid].add(result_server)
 
-    placements_by_server = self.redistribute_server_data_by_capacity(placements_by_server)
-
-    return placements_by_server
+    self.redistribute_server_data_by_capacity()
 
   # PHASE 4: Call migration methods on each server
-  def migrate_to_locations(self, placements_by_server):
-    for optimal_server, uuids in placements_by_server.iteritems():
+  def migrate_to_locations(self):
+    for optimal_server, uuids in self.placements_by_server.iteritems():
       for uuid in uuids:
         current_server = self.uuid_metadata[uuid]['current_server']
 
-        # conver to local hostname in case of simulation
+        # convert to local hostname in case of simulation
         current_server = util.convert_to_local_hostname(current_server)
         optimal_server = util.convert_to_local_hostname(optimal_server)
 
-        if current_server != optimal_server:
-          url = 'http://%s/transfer?%s' % (current_server, urllib.urlencode({ 'uuid': uuid, 'destination': optimal_server }))
+        if optimal_server != current_server:
+          print 'UUID_TO_SERVERS: ' + str(self.uuid_to_servers[uuid])
+          print 'current_server: ' + util.convert_to_simulation_ip(current_server)
+          if util.convert_to_simulation_ip(current_server) in self.uuid_to_servers[uuid]:
+            url = 'http://%s/replicate?%s' % (current_server, urllib.urlencode({ 'uuid': uuid, 'destination': optimal_server }))
+          else:
+            url = 'http://%s/transfer?%s' % (current_server, urllib.urlencode({ 'uuid': uuid, 'destination': optimal_server }))
           print url
           r = requests.put(url, timeout=30)
           if r.status_code == requests.codes.ok:
@@ -182,10 +190,7 @@ class RevengeOfVolley:
     return float(r.text)
 
   # Check capacity and redistribute data to each server
-  #
-  # params:
-  #   placements_by_server: dictionary mapping server hostname -> set of uuids
-  def redistribute_server_data_by_capacity(self, placements_by_server):
+  def redistribute_server_data_by_capacity(self):
     space_remaining = {}
     servers_with_capacity = set()
     servers_over_capacity = set()
@@ -193,7 +198,7 @@ class RevengeOfVolley:
     for server in self.servers:
       space_remaining[server] = self.total_server_capacity(server)
 
-      placements = placements_by_server[server]
+      placements = self.placements_by_server[server]
 
       for uuid in placements:
         metadata = self.uuid_metadata[uuid]
@@ -205,21 +210,23 @@ class RevengeOfVolley:
         servers_over_capacity.add(server)
 
     for server in servers_over_capacity:
-      placements = placements_by_server[server]
+      placements = self.placements_by_server[server]
       placements.sort(key=self.get_sort_key_by_request_count)
 
       # move top uuids to nearest locations (or second-nearest, etc if other servers are full)
       # until server is no longer over capacity
       while space_remaining[server] < 0:
         uuid = placements.pop()
+        self.uuid_to_servers[uuid].remove(server)
         metadata = self.uuid_metadata[uuid]
-        best_servers = self.find_closest_servers(metadata['optimal_location'], servers_with_capacity)
+        best_servers = self.find_closest_servers(metadata['optimal_location'][0], servers_with_capacity)
 
         for i, best_server_info in enumerate(best_servers):
           best_server = best_server_info['server']
           if space_remaining[best_server] >= metadata['file_size']:
             space_remaining[best_server] -= metadata['file_size']
-            placements_by_server[best_server].append(uuid)
+            self.placements_by_server[best_server].append(uuid)
+            self.uuid_to_servers[uuid].add(best_server)
             break
           if i == (len(best_servers) - 1):   # haven't found a server on the last iteration
             raise ValueError("There is too much data for the servers' storage capacity to handle.")
@@ -228,14 +235,13 @@ class RevengeOfVolley:
 
         print 'PLACEMENTS: ' + str(placements)
 
-    return placements_by_server
-
   # Convert from latitude to radians from the North Pole
   def convert_lat_to_radians(self, lat):
     # Subtract 90 to make range [-180, 0], then negate to make it [0, 180]
-    degrees_from_north_pole = (lat - 90) * -1;
+    # degrees_from_north_pole = (lat - 90) * -1;
 
-    return math.radians(degrees_from_north_pole)
+    # return math.radians(degrees_from_north_pole)
+    return math.radians(lat)
 
   # Convert longitude to radians
   def convert_lng_to_radians(self, lng):
@@ -245,10 +251,11 @@ class RevengeOfVolley:
 
   # Convert from radians from the North Pole to degrees
   def convert_lat_to_degrees(self, lat):
-    degrees_from_north_pole = math.degrees(lat)
-    degrees_from_equator = (degrees_from_north_pole * -1) + 90
+    # degrees_from_north_pole = math.degrees(lat)
+    # degrees_from_equator = (degrees_from_north_pole * -1) + 90
 
-    return degrees_from_equator
+    # return degrees_from_equator
+    return math.degrees(lat)
 
   # Convert longitude to degrees
   def convert_lng_to_degrees(self, lng):
@@ -275,7 +282,7 @@ class RevengeOfVolley:
     # Here, normalize to [-pi, pi) for longitude
     return self.normalize_radians((lng_a + lng_b) / 2, -1 * math.pi, math.pi)
 
-  # Helper for find_centroids, defined in Volley paper as weighted_spherical_mean
+  # Spherical interpolation, defined in Volley paper
   #
   # params:
   #   weight: weight for interpolation
@@ -317,25 +324,39 @@ class RevengeOfVolley:
 
     return (lat_c, lng_c)
 
-  # Recursive helper for find_centroids
-  #
-  # params:
-  #   weights: a list of weights
-  #   locations: a list of latitude/longitude tuples for clients, has same cardinality as weights
-  def find_centroids_helper(self, total_weight, weights, locations):
-    if len(weights) != len(locations):
-      raise ValueError('Weights and locations must have the same length.')
+  # Found at: http://www.geomidpoint.com/calculation.html
+  def weighted_spherical_mean(self, weights, locations):
+    cartesian_locations = []
 
-    length = len(weights)
+    total_x = 0
+    total_y = 0
+    total_z = 0
 
-    current_weight = float(weights.pop())
-    weight = current_weight / total_weight
-    location = locations.pop()
+    for i, location in enumerate(locations):
+      lat_radians = self.convert_lat_to_radians(location[0])
+      lng_radians = self.convert_lng_to_radians(location[1])
+      x = math.cos(lat_radians) * math.cos(lng_radians)
+      y = math.cos(lat_radians) * math.sin(lng_radians)
+      z = math.sin(lat_radians)
 
-    if length == 1:
-      return location
+      total_x += x
+      total_y += y
+      total_z += z
 
-    return self.interp(weight, location, self.find_centroids_helper(total_weight, weights, locations))
+    total_weight = float(sum(weights))
+
+    average_x = total_x / total_weight
+    average_y = total_y / total_weight
+    average_z = total_z / total_weight
+
+    hyp = math.sqrt((average_x * average_x) + (average_y * average_y))
+    result_lat_radians = math.atan2(average_z, hyp)
+    result_lng_radians = math.atan2(average_y, average_x)
+
+    result_lat = self.convert_lat_to_degrees(result_lat_radians)
+    result_lng = self.convert_lng_to_degrees(result_lng_radians)
+
+    return (result_lat, result_lng)
 
   # Find the weighted spherical mean locations for a data item
   #
@@ -402,7 +423,7 @@ class RevengeOfVolley:
 
       for server, server_dict in servers_to_weights_and_locations.iteritems():
         print server_dict
-        centroid = self.find_centroids_helper(server_dict['total_weight'], list(server_dict['weights']), list(server_dict['locations']))
+        centroid = self.weighted_spherical_mean(list(server_dict['weights']), list(server_dict['locations']))
         centroids.add(centroid)
 
         for i in range(len(server_dict['weights'])):
@@ -415,6 +436,8 @@ class RevengeOfVolley:
       ratio = float(total_cumulative_distance_to_ideal_server) / float(total_cumulative_distance_to_centroids)
       print 'ratio: ' + str(ratio)
 
+      print 'centroids: ' + str(centroids)
+
       if ratio >= 0.5 or number_of_centroids >= len(self.servers):
         break
 
@@ -423,12 +446,11 @@ class RevengeOfVolley:
     return centroids
 
 if __name__ == '__main__':
-  # if (len(sys.argv) < 3):
-  #   print 'Usage: python volley.py 1426809600 1427395218'
-  #   print 'Integers are Unix timestamps for start and end times to retrieve log data'
-  #   exit(1)
-  # start_time = sys.argv[1]
-  # end_time = sys.argv[2]
-  rov = RevengeOfVolley(1428788390, 1428788398)
-  print rov.find_centroids(1)
-  # rov.execute()
+  if (len(sys.argv) < 3):
+    print 'Usage: python volley.py 1426809600 1427395218'
+    print 'Integers are Unix timestamps for start and end times to retrieve log data'
+    exit(1)
+  start_time = sys.argv[1]
+  end_time = sys.argv[2]
+  rov = RevengeOfVolley(start_time, end_time)
+  rov.execute()
