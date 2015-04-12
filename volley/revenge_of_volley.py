@@ -402,22 +402,22 @@ class RevengeOfVolley:
       total_cumulative_distance_to_ideal_server = 0
 
       # partition to servers closest to each server
-      for uuid, client_info in self.uuid_to_clients.iteritems():
-        for client, client_dict in client_info.iteritems():
-          closest_servers = self.find_closest_servers(client_dict['location'], server_locations)
-          closest_server = closest_servers[0]['server']
-          closest_server_location = self.ip_cache.get_lat_lon_from_ip(closest_server)
+      client_info = self.uuid_to_clients[uuid]
+      for client, client_dict in client_info.iteritems():
+        closest_servers = self.find_closest_servers(client_dict['location'], server_locations)
+        closest_server = closest_servers[0]['server']
+        closest_server_location = self.ip_cache.get_lat_lon_from_ip(closest_server)
 
-          ideal_servers = self.find_closest_servers(client_dict['location'], self.servers)
-          ideal_server = ideal_servers[0]['server']
-          ideal_server_location = self.ip_cache.get_lat_lon_from_ip(ideal_server)
+        ideal_servers = self.find_closest_servers(client_dict['location'], self.servers)
+        ideal_server = ideal_servers[0]['server']
+        ideal_server_location = self.ip_cache.get_lat_lon_from_ip(ideal_server)
 
-          if closest_server not in servers_to_weights_and_locations:
-            servers_to_weights_and_locations[closest_server] = { 'weights': [], 'locations': [], 'total_weight': 0 }
-          servers_to_weights_and_locations[closest_server]['weights'].append(client_dict['request_count'])
-          servers_to_weights_and_locations[closest_server]['locations'].append(client_dict['location'])
-          total_cumulative_distance_to_ideal_server += client_dict['request_count'] * util.get_distance(client_dict['location'], ideal_server_location)
-          servers_to_weights_and_locations[closest_server]['total_weight'] += client_dict['request_count']
+        if closest_server not in servers_to_weights_and_locations:
+          servers_to_weights_and_locations[closest_server] = { 'weights': [], 'locations': [], 'total_weight': 0 }
+        servers_to_weights_and_locations[closest_server]['weights'].append(client_dict['request_count'])
+        servers_to_weights_and_locations[closest_server]['locations'].append(client_dict['location'])
+        total_cumulative_distance_to_ideal_server += client_dict['request_count'] * util.get_distance(client_dict['location'], ideal_server_location)
+        servers_to_weights_and_locations[closest_server]['total_weight'] += client_dict['request_count']
 
       total_cumulative_distance_to_centroids = 0
 
