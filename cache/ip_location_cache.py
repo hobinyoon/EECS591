@@ -29,7 +29,8 @@ class ip_location_cache:
             loc[0] = float(loc[0])
             loc[1] = float(loc[1])
 
-            self.add_entry_to_cache(ip_info['ip'], loc[0], loc[1], ip_info['city'], ip_info['region'], ip_info['country'])
+            # self.add_entry_to_cache(ip_info['ip'], loc[0], loc[1], ip_info['city'], ip_info['region'], ip_info['country'])
+            self.add_entry_to_cache(ip_info['ip'], loc[0], loc[1], 'dummy', 'dummy', 'dummy')
             print 'Inserted into database.'
             return (loc[0], loc[1])
         except ValueError:
@@ -52,4 +53,3 @@ class ip_location_cache:
     # Close database connection
     def __del__(self):
         self.conn.close()
-

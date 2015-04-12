@@ -28,19 +28,23 @@ if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument('--disable-concurrency', action='store_false', help='disable concurrency (no delays on requests)')
   parser.add_argument('--algorithm', choices=['volley', 'greedy', 'distributed'], help='the algorithm used for replication', required=True)
-  parser.add_argument('--dataset', choices=['1', '2', '3'], help='choices for choosing the dataset', required=True)
+  parser.add_argument('--dataset', choices=['1', '2', '3', 'twitter'], help='choices for choosing the dataset', required=True)
 
   args = vars(parser.parse_args())
   algorithm = args['algorithm']
   dataset_name = None
-  if args['dataset'] == '1':
-    dataset_name = '01_random_replication'
-  elif args['dataset'] == '2':
-    dataset_name = '02_replication_effects'
-  elif args['dataset'] == '3':
-    dataset_name = '03_real_time_algorithm'
-  ip_lat_long_map_filename = 'dataset/synthetic/' + dataset_name + '/ip_lat_long_map.txt'
-  access_log_filename = 'dataset/synthetic/' + dataset_name + '/access_log.txt'
+  if args['dataset'] == '1' or args['dataset'] == '2' or args['dataset'] == '3':
+    if args['dataset'] == '1':
+      dataset_name = '01_random_replication'
+    elif args['dataset'] == '2':
+      dataset_name = '02_replication_effects'
+    elif args['dataset'] == '3':
+      dataset_name = '03_real_time_algorithm'
+    ip_lat_long_map_filename = 'dataset/synthetic/' + dataset_name + '/ip_lat_long_map.txt'
+    access_log_filename = 'dataset/synthetic/' + dataset_name + '/access_log.txt'
+  elif args['dataset'] == 'twitter':
+    ip_lat_long_map_filename = 'dataset/twitter/ip_lat_long_map.txt'
+    access_log_filename = 'dataset/twitter/access_log.txt'
 
   if algorithm == 'volley' or algorithm == 'greedy':
     print '************************* Set up simulation environment *************************'
@@ -54,9 +58,9 @@ if __name__ == '__main__':
     if algorithm == 'volley':
         Volley(before_start_time, before_end_time).execute()
     elif algorithm == 'greedy':
-        greedy = GreedyReplication()
-        greedy.last_timestamp = before_end_time
-        greedy.run_replication()
+        greedy = SimpleCentralizedGreedy()
+        greedy.last_timestamp = before_start_time
+        greedy.execute()
 
     after_start_time, after_end_time = replay_log.simulate_requests(access_log_filename, False, False)
     evaluator.set_time(before_end_time, after_end_time)

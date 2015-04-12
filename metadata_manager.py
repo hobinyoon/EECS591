@@ -39,6 +39,10 @@ class MetadataManager:
         self.cursor.execute('INSERT OR REPLACE INTO FileMap VALUES (?, ?, ?)', (file_uuid, server_stored, file_size))
         self.conn.commit()
 
+    def get_file_size(self, file_uuid):
+        self.cursor.execute('SELECT file_size FROM FileMap WHERE uuid=?', (file_uuid))
+        return self.cursor.fetchone()[0]
+
     # Delete the file uuid with the server stored into the database
     #
     # params:

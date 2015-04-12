@@ -9,5 +9,5 @@
 5.5.5.9	41.795888	-70.751953	West Wareham	Massachusetts	US
 5.5.5.10	40.805494	-76.289063	Girardville	Pennsylvania	US
 4.4.4.1	40.605612	-109.423828	Vernal	Utah	US
-4.4.4.2	40.793019	-93.559570	Garden Grove	Iowa	US
+4.4.4.2	39.968559	-97.134261	Garden Grove	Iowa	US
 4.4.4.3	40.447781	-83.408203	Richwood	Ohio	US
