@@ -42,8 +42,8 @@ class Aggregator:
       return None
 
   def update_log_from_server(self, server, start_timestamp):
-    if start_timestamp == 'update':
-      start_timestamp = self.log_mgr.last_timestamp(server)
+    # if start_timestamp == 'update':
+    #   start_timestamp = self.log_mgr.last_timestamp(server)
 
     # Retrieve first log from server, update, and set next day as start_timestamp
     if start_timestamp is None:
@@ -55,7 +55,7 @@ class Aggregator:
         start_timestamp = int(first_log.split("\t")[0])
         print "Updated log from server <http://" + server + "> for date: " + self.timestamp_to_date(start_timestamp) + "."
         start_timestamp += self.SECONDS_PER_DAY
-        
+
     now = int(time.time())
     current_timestamp = start_timestamp
     while True:
@@ -73,6 +73,7 @@ class Aggregator:
   def update_aggregated_logs(self, start_timestamp = None):
     server_list = util.retrieve_server_list()
 
+    self.log_mgr.clear_all_logs()
     for server in server_list:
       self.update_log_from_server(server, start_timestamp)
 
@@ -87,7 +88,8 @@ class Aggregator:
   #   list of tuples
   def get_read_log_entries(self, start_timestamp = None, end_timestamp = None):
     # to get latest logs, update first
-    self.update_aggregated_logs('update')
+    # self.update_aggregated_logs('update')
+    # self.update_aggregated_logs()
     return self.log_mgr.get_reads(start_timestamp, end_timestamp)
 
   # Retrive successful log on file movement in a specified time period
@@ -99,7 +101,8 @@ class Aggregator:
   #   list of tuples
   def get_moving_log_entries(self, start_timestamp = None, end_timestamp = None):
     # to get latest logs, update first
-    self.update_aggregated_logs('update')
+    # self.update_aggregated_logs('update')
+    # self.update_aggregated_logs()
     return self.log_mgr.get_movings(start_timestamp, end_timestamp)
 
   # Retrive log on redirect (read with 302) in a specified time period
@@ -111,23 +114,24 @@ class Aggregator:
   #   list of tuples
   def get_redirect_log_entries(self, start_timestamp = None, end_timestamp = None):
     # to get latest logs, update first
-    self.update_aggregated_logs('update')
+    # self.update_aggregated_logs('update')
+    # self.update_aggregated_logs()
     return self.log_mgr.get_redirects(start_timestamp, end_timestamp)
 
 if __name__ == '__main__':
   # Parse arguments for app
-  parser = argparse.ArgumentParser(description='Aggregator CLI for EECS591.')
-  parser.add_argument('--update', action='store_true', help='Aggregate logs, beginning from timestamp of last log added to aggregated logs')
-  parser.add_argument('--time', help='Specify start date in Unix timestamp format.')
-  parser.add_argument('--date', help='Specify start date in YYYY-MM-DD format.')
+  # parser = argparse.ArgumentParser(description='Aggregator CLI for EECS591.')
+  # parser.add_argument('--update', action='store_true', help='Aggregate logs, beginning from timestamp of last log added to aggregated logs')
+  # parser.add_argument('--time', help='Specify start date in Unix timestamp format.')
+  # parser.add_argument('--date', help='Specify start date in YYYY-MM-DD format.')
 
   args = parser.parse_args()
   aggregator = Aggregator()
-  if args.update is True:
-    aggregator.update_aggregated_logs('update')
-  elif args.time is not None:
-    aggregator.update_aggregated_logs(args.time)
-  elif args.date is not None:
-    aggregator.update_aggregated_logs(aggregator.date_to_timestamp(args.date))
-  else:
-    aggregator.update_aggregated_logs()
+  # if args.update is True:
+  #   aggregator.update_aggregated_logs('update')
+  # elif args.time is not None:
+  #   aggregator.update_aggregated_logs(args.time)
+  # elif args.date is not None:
+  #   aggregator.update_aggregated_logs(aggregator.date_to_timestamp(args.date))
+  # else:
+  aggregator.update_aggregated_logs()

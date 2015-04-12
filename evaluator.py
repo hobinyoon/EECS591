@@ -23,6 +23,8 @@ class Evaluator:
   # read_logs and moving_logs are always emited unless for testing
   def evaluate(self, read_logs=None, moving_logs=None):
     # collect server logs
+    self.aggregator.update_aggregated_logs()
+
     if read_logs is None:
       read_logs = self.aggregator.get_read_log_entries(self.start_time, self.end_time)
     if moving_logs is None:

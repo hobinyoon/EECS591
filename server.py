@@ -57,8 +57,8 @@ def write_file():
             os.makedirs(app.config['UPLOAD_FOLDER'])
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], file_uuid)
         file.save(file_path)
-        metadata.update_file_stored(file_uuid, app.config['HOST'], get_file_size(file_path))
         host_address = app.config['simulation_ip'] if 'simulation_ip' in app.config else app.config['HOST']
+        metadata.update_file_stored(file_uuid, app.config['HOST'], get_file_size(file_path))
         logger.log(file_uuid, ip_address, 'null', host_address, 'WRITE', requests.codes.created, 0)
         return file_uuid, requests.codes.created
     else:
@@ -123,6 +123,7 @@ def read_file():
               return send_from_directory(UPLOAD_FOLDER, secure_filename(filename))
             else:
               raise Exception('greedy replication failed.')
+        print 'redirecting to: ' + redirect_url
         return redirect(redirect_url, code=requests.codes.found)
 
     logger.log(filename, ip_address, source_uuid, host_address, 'READ', requests.codes.not_found, -1)
@@ -156,7 +157,7 @@ def transfer():
     file_uuid = request.args.get('uuid')
     destination = request.args.get('destination')
     write_request = clone_file(file_uuid, destination, 'TRANSFER', ip_address)
-    if (write_request[1] == requests.codes.created):
+    if (write_request[1] == requests.codes.ok):
         os.remove(os.path.join(app.config['UPLOAD_FOLDER'], file_uuid))
         metadata.delete_file_stored(request.args.get('uuid'), app.config['HOST'])
     return write_request

@@ -7,7 +7,6 @@ import os
 class LogManager:
 
   def __init__(self, start_time = 0, end_time = int(time.time())):
-
     # timestamps for start/end point for logs to retrieve
     self.start_time = int(start_time)
     self.end_time = int(end_time)
@@ -29,7 +28,7 @@ class LogManager:
       for i, col in enumerate(log_columns):
         if col == 'null':
           log_columns[i] = None
-      self.cursor.execute('INSERT OR REPLACE INTO Log VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      self.cursor.execute('INSERT INTO Log VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
                           (log_columns[0], log_columns[1], log_columns[2], log_columns[3],
                            log_columns[4], log_columns[5], log_columns[6], log_columns[7]))
       self.conn.commit()
@@ -132,6 +131,10 @@ class LogManager:
       raise Exception('Number of requests could not be found for uuid: ' + uuid)
 
     return request_count_result[0]
+
+  def clear_all_logs(self):
+    self.cursor.execute('DELETE from Log')
+    self.conn.commit()
 
   # Closes the connection to the database
   def __del__(self):
