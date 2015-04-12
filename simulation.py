@@ -10,6 +10,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), 'ca
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), 'volley'))
 from ip_location_cache import ip_location_cache
 from volley import Volley
+from revenge_of_volley import RevengeOfVolley
 from greedy_algo import GreedyReplication
 from central_greedy import SimpleCentralizedGreedy
 from aggregator import Aggregator
@@ -27,7 +28,7 @@ def update_ip_lat_long_map(ip_lat_long_map_file):
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument('--disable-concurrency', action='store_false', help='disable concurrency (no delays on requests)')
-  parser.add_argument('--algorithm', choices=['volley', 'greedy', 'distributed'], help='the algorithm used for replication', required=True)
+  parser.add_argument('--algorithm', choices=['volley', 'greedy', 'distributed', 'rov'], help='the algorithm used for replication', required=True)
   parser.add_argument('--dataset', choices=['1', '2', '3', 'twitter'], help='choices for choosing the dataset', required=True)
 
   args = vars(parser.parse_args())
@@ -46,7 +47,7 @@ if __name__ == '__main__':
     ip_lat_long_map_filename = 'dataset/twitter/ip_lat_long_map.txt'
     access_log_filename = 'dataset/twitter/access_log.txt'
 
-  if algorithm == 'volley' or algorithm == 'greedy':
+  if algorithm == 'volley' or algorithm == 'greedy' or algorithm == 'rov':
     print '************************* Set up simulation environment *************************'
     update_ip_lat_long_map(ip_lat_long_map_filename)
 
@@ -57,6 +58,8 @@ if __name__ == '__main__':
 
     if algorithm == 'volley':
         Volley(before_start_time, before_end_time).execute()
+    elif algorithm == 'rov':
+        RevengeOfVolley(before_start_time, before_end_time).execute()
     elif algorithm == 'greedy':
         greedy = SimpleCentralizedGreedy()
         greedy.last_timestamp = before_start_time
