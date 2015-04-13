@@ -183,7 +183,7 @@ def generate_ip_address():
 # Generates a latitude, longitude pair randomly.
 # The result can even be in the north pole!
 def generate_random_lat_long():
-    lat = random.uniform(-180, 181)
+    lat = random.uniform(-90, 91)
     lon = random.uniform(-180, 181)
     return (lat, lon)
 
