@@ -65,6 +65,8 @@ class RevengeOfVolley:
 
         for tuple in uuid_to_interdependencies:
           other_item_uuid = tuple[0]
+          if other_item_uuid not in self.uuid_to_locations:
+            continue
           other_item_locations = self.uuid_to_locations[other_item_uuid]
           request_count = tuple[1]
 
@@ -130,15 +132,20 @@ class RevengeOfVolley:
         current_server = util.convert_to_local_hostname(current_server)
         optimal_server = util.convert_to_local_hostname(optimal_server)
 
+        transfer = False
+
         if optimal_server != current_server:
           if util.convert_to_simulation_ip(current_server) in self.uuid_to_servers[uuid]:
             url = 'http://%s/replicate?%s' % (current_server, urllib.urlencode({ 'uuid': uuid, 'destination': optimal_server }))
           else:
             url = 'http://%s/transfer?%s' % (current_server, urllib.urlencode({ 'uuid': uuid, 'destination': optimal_server }))
+            transfer = True
           print url
           r = requests.put(url, timeout=30)
           if r.status_code == requests.codes.ok:
             print 'SUCCESS: Migrating ' + uuid + ' from <' + current_server + '> to <' + optimal_server + '>'
+            if transfer:
+              self.uuid_metadata[uuid]['current_server'] = optimal_server
           else:
             raise Exception('FAILED: Migrating ' + uuid + ' from <' + current_server + '> to <' + optimal_server + '>')
 
@@ -295,7 +302,10 @@ class RevengeOfVolley:
 
     d_first = math.cos(lat_a) * math.cos(lat_b)
     d_second = math.sin(lat_a) * math.sin(lat_b) * math.cos(lng_b - lng_a)
-    d = math.acos(d_first + d_second)
+    d_intermediate = d_first + d_second
+    if d_intermediate >= 1:
+      d_intermediate = 1
+    d = math.acos(d_intermediate)
 
     gamma_numerator = math.sin(lat_b) * math.sin(lat_a) * math.sin(lng_b - lng_a)
     gamma_denominator = math.cos(lat_a) - (math.cos(d) * math.cos(lat_b))
@@ -388,7 +398,7 @@ class RevengeOfVolley:
     number_of_centroids = 1
 
     while True:
-      centroids = set()
+      centroids = []
 
       server_locations = []
       for i in range(number_of_centroids):
@@ -422,13 +432,14 @@ class RevengeOfVolley:
 
       for server, server_dict in servers_to_weights_and_locations.iteritems():
         centroid = self.weighted_spherical_mean(list(server_dict['weights']), list(server_dict['locations']))
-        centroids.add(centroid)
+        centroids.append(centroid)
 
         for i in range(len(server_dict['weights'])):
           total_cumulative_distance_to_centroids += server_dict['weights'][i] * util.get_distance(server_dict['locations'][i], centroid)
 
       # Check if (weighted avg dist to closest server + 1)/(weighted avg dist to closest centroid + 1) < 0.5, or k >= number_of_servers
-      greedy_volley_ratio = float(total_cumulative_distance_to_ideal_server) / float(total_cumulative_distance_to_centroids)
+      # add 1 to numerator and denominator to avoid divide by 0
+      greedy_volley_ratio = float(1 + total_cumulative_distance_to_ideal_server) / float(1 + total_cumulative_distance_to_centroids)
 
       if greedy_volley_ratio >= GV_RATIO_THRESHOLD or number_of_centroids >= len(self.servers):
         break
