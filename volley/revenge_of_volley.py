@@ -24,7 +24,7 @@ import util
 # Configurable Constants
 ITERATIONS = 5
 KAPPA = 5
-GV_RATIO_THRESHOLD = 1.1
+GV_RATIO_THRESHOLD = 1.9
 
 class RevengeOfVolley:
 
@@ -46,7 +46,9 @@ class RevengeOfVolley:
   # Execute Volley algorithm
   def execute(self):
     self.place_initial()
+    print 'after phase1: ' + str(self.uuid_to_servers)
     self.reduce_latency()
+    print 'after phase2: ' + str(self.uuid_to_servers)
     self.collapse_to_datacenters()
     self.migrate_to_locations()
     print 'Revenge of Volley execution complete!'
@@ -144,6 +146,7 @@ class RevengeOfVolley:
           self.uuid_to_servers[uuid] = set()
         self.uuid_to_servers[uuid].add(result_server)
 
+    print str(self.uuid_to_servers)
     self.redistribute_server_data_by_capacity()
 
   # PHASE 4: Call migration methods on each server
@@ -159,6 +162,9 @@ class RevengeOfVolley:
         transfer = False
 
         if optimal_server != current_server:
+          print 'current_ip: ' + util.convert_to_simulation_ip(current_server)
+          print 'uuid_to_servers: ' + str(self.uuid_to_servers)
+          print 'uuid: ' + uuid
           if util.convert_to_simulation_ip(current_server) in self.uuid_to_servers[uuid]:
             url = 'http://%s/replicate?%s' % (current_server, urllib.urlencode({ 'uuid': uuid, 'destination': optimal_server }))
           else:
@@ -424,7 +430,6 @@ class RevengeOfVolley:
 
     while True:
       centroids = []
-
       server_locations = []
       for i in range(number_of_centroids):
         if i >= len(self.uuid_to_server_ranking[uuid]):
@@ -455,6 +460,8 @@ class RevengeOfVolley:
 
       total_cumulative_distance_to_centroids = 0
 
+      print 'servers: ' + str(servers_to_weights_and_locations)
+
       for server, server_dict in servers_to_weights_and_locations.iteritems():
         centroid = self.weighted_spherical_mean(list(server_dict['weights']), list(server_dict['locations']))
         centroids.append(centroid)
@@ -462,10 +469,18 @@ class RevengeOfVolley:
         for i in range(len(server_dict['weights'])):
           total_cumulative_distance_to_centroids += server_dict['weights'][i] * util.get_distance(server_dict['locations'][i], centroid)
 
+      # for client, client_dict in client_info.iteritems():
+      #   print 'client_dict: ' + str(client_dict)
+      #   total_cumulative_distance_to_centroids += client_dict['request_count'] * self.find_min_distance(centroids, client_dict['location'])
+      # print 'total_cumulative_distance_to_centroids: ' + str(total_cumulative_distance_to_centroids)
+
       # Check if (weighted avg dist to closest server + 1)/(weighted avg dist to closest centroid + 1) < 0.5, or k >= number_of_servers
       # add 1 to numerator and denominator to avoid divide by 0
-      greedy_volley_ratio = float(1 + total_cumulative_distance_to_ideal_server) / float(1 + total_cumulative_distance_to_centroids)
-      print uuid, greedy_volley_ratio
+      greedy_volley_ratio = float(1 + total_cumulative_distance_to_centroids) / float(1 + total_cumulative_distance_to_ideal_server)
+      print 'uuid: ' + uuid
+      print 'ratio: ' + str(greedy_volley_ratio)
+      print 'numerator: ' + str(float(1 + total_cumulative_distance_to_ideal_server))
+      print 'denominator: ' + str(float(1 + total_cumulative_distance_to_centroids))
       if greedy_volley_ratio >= GV_RATIO_THRESHOLD or number_of_centroids >= len(self.servers):
         break
 
@@ -479,6 +494,15 @@ class RevengeOfVolley:
       centroids.append(initial_location)
 
     return centroids
+
+  # Find the min distance
+  def find_min_distance(self, centroids, client):
+    retval = sys.maxint
+    for centroid in centroids:
+      dist = util.get_distance(centroid, client)
+      if retval >= dist:
+        retval = dist
+    return retval
 
 if __name__ == '__main__':
   if (len(sys.argv) < 3):
