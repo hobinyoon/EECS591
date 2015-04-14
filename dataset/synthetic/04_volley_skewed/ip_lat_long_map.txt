@@ -1,0 +1,9 @@
+5.5.5.1	43.667872	-116.367188	Boise	Idaho	US
+5.5.5.2	40.538852	-120.498047	Susanville	California	US
+5.5.5.3	47.420654	-122.343750	Normandy Park	Washington	US
+5.5.5.4	36.835668	-121.289063	Hollister	California	US
+5.5.5.5	44.925918	-116.894531	Baker County	Oregon	US
+5.5.5.6	37.396346	-80.332031	Lloyd Harbor	New York	US
+4.4.4.1	43.221190	-111.445313	Vernal	Utah	US
+4.4.4.2	43.221190	-105.029297	Garden Grove	Iowa	US
+4.4.4.3	35.415915	-83.144531	Richwood	Ohio	US
