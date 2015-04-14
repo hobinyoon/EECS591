@@ -110,6 +110,16 @@ def find_closest_servers_with_ip(ip_addr, servers):
 
     return best_servers
 
+# Gets a list of local files per server
+def local_files_per_server():
+    local_files_per_server = {}
+
+    for server in retrieve_server_list():
+        local_files_per_server[server] = get_file_list_on_server(server)
+
+    return local_files_per_server
+
+
 # Gets sort key for sort function to sort by ascending distance
 def get_distance_key(server_dict):
     return server_dict['distance']

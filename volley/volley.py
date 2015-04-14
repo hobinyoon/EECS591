@@ -22,7 +22,7 @@ import util
 
 # Configurable Constants
 INTERDEPENDENCY_ITERATIONS = 5
-KAPPA = 0.5
+KAPPA = 5
 
 class Volley:
 
@@ -34,6 +34,7 @@ class Volley:
     for server in util.retrieve_server_list():
       self.servers.append(util.convert_to_simulation_ip(server))
 
+    self.uuid_to_clients = {}   # dictionary mapping uuid -> set([{ location: (lat, long), request_count: 5 }])
     self.uuid_metadata = {}     # dictionary mapping uuid -> metadata (includes state-ful data)
 
   # Execute Volley algorithm
@@ -70,6 +71,13 @@ class Volley:
           weight = 1 / (1 + (KAPPA * distance * request_count))
           location = self.interp(weight, location, other_item_location)
 
+        for client_ip, client_info in self.uuid_to_clients[uuid].iteritems():
+          client_location = client_info['location']
+          request_count = client_info['request_count']
+          distance = util.get_distance(location, client_location)
+          weight = 1 / (1 + (KAPPA * distance * request_count))
+          location = self.interp(weight, location, client_location)
+
         locations_by_uuid[uuid] = location
 
     return locations_by_uuid
@@ -88,9 +96,7 @@ class Volley:
       # Query any server for metadata - server will update and get information
       any_server = util.convert_to_local_hostname(self.servers[0])
       url = 'http://%s/metadata?%s' % (any_server, urllib.urlencode({ 'uuid': uuid }))
-      print url
       r = requests.get(url)
-      print r.text
       response = json.loads(r.text)
       metadata['current_server'] = response['server']
       metadata['file_size'] = response['file_size']
@@ -283,7 +289,10 @@ class Volley:
 
     d_first = math.cos(lat_a) * math.cos(lat_b)
     d_second = math.sin(lat_a) * math.sin(lat_b) * math.cos(lng_b - lng_a)
-    d = math.acos(d_first + d_second)
+    d_intermediate = d_first + d_second
+    if d_intermediate >= 1:
+      d_intermediate = 1
+    d = math.acos(d_intermediate)
 
     gamma_numerator = math.sin(lat_b) * math.sin(lat_a) * math.sin(lng_b - lng_a)
     gamma_denominator = math.cos(lat_a) - (math.cos(d) * math.cos(lat_b))
@@ -354,6 +363,7 @@ class Volley:
     if len(request_logs) == 0:
       return None
 
+    self.uuid_to_clients[uuid] = {}
     weights = []
     locations = []
 
@@ -361,6 +371,9 @@ class Volley:
       client_loc = self.ip_cache.get_lat_lon_from_ip(req[0])
       if client_loc is None:
         raise NameError('Could not find client ' + req[0] + ' in client DB.')
+      request_count = int(req[1])
+      if req[0] not in self.servers:
+        self.uuid_to_clients[uuid][req[0]] = { 'location': client_loc, 'request_count': request_count }
       locations.append(client_loc)
       weights.append(req[1])
 

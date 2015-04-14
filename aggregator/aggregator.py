@@ -92,6 +92,19 @@ class Aggregator:
     # self.update_aggregated_logs()
     return self.log_mgr.get_reads(start_timestamp, end_timestamp)
 
+  # Retrive successful log read entries in a specified time period
+  #
+  # params:
+  #   start_timestamp: returned logs start from this integer timestamp
+  #   end_timestamp: returned logs end by this integer timestamp
+  # return val:
+  #   list of tuples
+  def get_write_log_entries(self, start_timestamp = None, end_timestamp = None):
+    # to get latest logs, update first
+    # self.update_aggregated_logs('update')
+    # self.update_aggregated_logs()
+    return self.log_mgr.get_writes(start_timestamp, end_timestamp)
+
   # Retrive successful log on file movement in a specified time period
   #
   # params:

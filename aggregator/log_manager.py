@@ -69,6 +69,15 @@ class LogManager:
     self.cursor.execute('SELECT * FROM Log WHERE (request_type = \'TRANSFER\' OR request_type = \'REPLICATE\' OR request_type = \'DISTRIBUTED_REPLICATE\') AND status = 200 AND timestamp >= ? AND timestamp <= ? ORDER BY timestamp ASC', (start_timestamp, end_timestamp))
     return self.cursor.fetchall()
 
+  # Retrieve successful log on file movement in a specified time period
+  def get_writes(self, start_timestamp = None, end_timestamp = None):
+    if start_timestamp == None:
+      start_timestamp = self.start_time if self.start_time is not None else 0
+    if end_timestamp == None:
+      end_timestamp = self.end_time if self.end_time is not None else int(time.time())
+    self.cursor.execute('SELECT * FROM Log WHERE request_type = \'WRITE\' AND status = 201 AND timestamp >= ? AND timestamp <= ? ORDER BY timestamp ASC', (start_timestamp, end_timestamp))
+    return self.cursor.fetchall()
+
   # Retrive log on redirect (read with 302) in a specified time period
   def get_redirects(self, start_timestamp = None, end_timestamp = None):
     if start_timestamp is None:

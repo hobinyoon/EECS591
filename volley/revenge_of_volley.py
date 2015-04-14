@@ -23,8 +23,8 @@ import util
 
 # Configurable Constants
 ITERATIONS = 5
-KAPPA = 0.5
-GV_RATIO_THRESHOLD = 0.5
+KAPPA = 5
+GV_RATIO_THRESHOLD = 1.1
 
 class RevengeOfVolley:
 
@@ -32,8 +32,9 @@ class RevengeOfVolley:
     self.log_manager = LogManager(start_time, end_time)
     self.ip_cache = ip_location_cache.ip_location_cache()
 
-    # for now, get from logs. maybe use aggregator to make these calls later?
-    self.servers = self.log_manager.get_unique_destinations()
+    self.servers = []
+    for server in util.retrieve_server_list():
+      self.servers.append(util.convert_to_simulation_ip(server))
 
     self.uuid_to_locations = {}       # dictionary mapping uuid -> optimal locations
     self.uuid_to_servers = {}         # dictionary mapping uuid -> server locations
@@ -73,6 +74,7 @@ class RevengeOfVolley:
           # find closest location pair
           min_distance = None
           location_pair = None
+          selected_location_index = None
 
           for location_index, location in enumerate(locations):
             for other_item_location in other_item_locations:
@@ -81,6 +83,28 @@ class RevengeOfVolley:
                 min_distance = distance
                 location_pair = (location, other_item_location)
                 selected_location_index = location_index
+
+          weight = 1 / (1 + (KAPPA * distance * request_count))
+          updated_location = self.interp(weight, location_pair[0], location_pair[1])
+          self.uuid_to_locations[uuid][selected_location_index] = updated_location
+
+        for client_ip, client_info in self.uuid_to_clients[uuid].iteritems():
+          client_location = client_info['location']
+          request_count = client_info['request_count']
+          distance = util.get_distance(location, client_location)
+          weight = 1 / (1 + (KAPPA * distance * request_count))
+
+          # find closest location pair
+          min_distance = None
+          location_pair = None
+          selected_location_index = None
+
+          for location_index, location in enumerate(locations):
+            distance = util.get_distance(location, other_item_location)
+            if min_distance is None or distance < min_distance:
+              min_distance = distance
+              location_pair = (location, client_location)
+              selected_location_index = location_index
 
           weight = 1 / (1 + (KAPPA * distance * request_count))
           updated_location = self.interp(weight, location_pair[0], location_pair[1])
@@ -385,7 +409,8 @@ class RevengeOfVolley:
       if client_loc is None:
         raise NameError('Could not find client ' + req[0] + ' in client DB.')
       request_count = int(req[1])
-      self.uuid_to_clients[uuid][req[0]] = { 'location': client_loc, 'request_count': request_count }
+      if req[0] not in self.servers:
+        self.uuid_to_clients[uuid][req[0]] = { 'location': client_loc, 'request_count': request_count }
       closest_server_to_client_list = self.find_closest_servers(client_loc, self.servers)
       closest_server_to_client = closest_server_to_client_list[0]['server']
       if closest_server_to_client not in requests_per_server:
@@ -440,11 +465,18 @@ class RevengeOfVolley:
       # Check if (weighted avg dist to closest server + 1)/(weighted avg dist to closest centroid + 1) < 0.5, or k >= number_of_servers
       # add 1 to numerator and denominator to avoid divide by 0
       greedy_volley_ratio = float(1 + total_cumulative_distance_to_ideal_server) / float(1 + total_cumulative_distance_to_centroids)
-
+      print uuid, greedy_volley_ratio
       if greedy_volley_ratio >= GV_RATIO_THRESHOLD or number_of_centroids >= len(self.servers):
         break
 
       number_of_centroids += 1
+
+    if len(centroids) == 0:
+      # if no centroids returned, there were no pure client requests, only
+      # data interdependency requests. If so, return the location of the server of where
+      # the initial interdependent requests come from
+      initial_location = self.ip_cache.get_lat_lon_from_ip(self.uuid_to_server_ranking[uuid][0])
+      centroids.append(initial_location)
 
     return centroids
 

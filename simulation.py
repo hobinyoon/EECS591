@@ -29,7 +29,7 @@ if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument('--disable-concurrency', action='store_false', help='disable concurrency (no delays on requests)')
   parser.add_argument('--algorithm', choices=['volley', 'greedy', 'distributed', 'rov'], help='the algorithm used for replication', required=True)
-  parser.add_argument('--dataset', choices=['1', '2', '3', 'twitter'], help='choices for choosing the dataset', required=True)
+  parser.add_argument('--dataset', choices=['1', '2', '3', 'twitter', 'twitter-random'], help='choices for choosing the dataset', required=True)
 
   args = vars(parser.parse_args())
   algorithm = args['algorithm']
@@ -46,6 +46,9 @@ if __name__ == '__main__':
   elif args['dataset'] == 'twitter':
     ip_lat_long_map_filename = 'dataset/twitter/ip_lat_long_map.txt'
     access_log_filename = 'dataset/twitter/access_log.txt'
+  elif args['dataset'] == 'twitter-random':
+    ip_lat_long_map_filename = 'dataset/twitter-randomized/ip_lat_long_map.txt'
+    access_log_filename = 'dataset/twitter-randomized/access_log.txt'
 
   if algorithm == 'volley' or algorithm == 'greedy' or algorithm == 'rov':
     print '************************* Set up simulation environment *************************'
